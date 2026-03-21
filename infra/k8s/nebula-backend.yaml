@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nebula-backend
+  labels:
+    app: nebula-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nebula-backend
+  template:
+    metadata:
+      labels:
+        app: nebula-backend
+    spec:
+      containers:
+      - name: backend
+        image: nebula-ide/backend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: nebula-secrets
+              key: database-url
+        - name: GITHUB_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: nebula-secrets
+              key: github-client-id
+        - name: GITHUB_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: nebula-secrets
+              key: github-client-secret
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nebula-secrets
+              key: encryption-key
+        volumeMounts:
+        - name: workspace-data
+          mountPath: /workspaces
+      volumes:
+      - name: workspace-data
+        persistentVolumeClaim:
+          claimName: nebula-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nebula-backend
+spec:
+  selector:
+    app: nebula-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP

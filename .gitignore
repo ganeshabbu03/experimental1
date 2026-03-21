@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+.next/
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+workspaces/
+*.zip
+*.log
+api-keys-*.csv
+CodeEditor_diff.txt
+difffile.txt
+files (1)/
+apps/backend-node/out*
+apps/backend-node/storage/

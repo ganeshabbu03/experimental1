@@ -1,0 +1,24 @@
+replicaCount: 2
+
+image:
+  repository: nebula-ide/backend
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: api.nebula.ide
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+env:
+  databaseUrl: "postgresql://user:pass@db:5432/nebula"
+  githubClientId: ""
+  githubClientSecret: ""
