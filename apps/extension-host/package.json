@@ -1,0 +1,18 @@
+{
+    "name": "deexen-extension-host",
+    "version": "0.1.0",
+    "description": "Host process for Deexen extensions",
+    "main": "dist/main.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/main.js"
+    },
+    "dependencies": {
+        "rpc-websockets": "^7.5.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/ws": "^8.18.1",
+        "typescript": "^5.0.0"
+    }
+}
