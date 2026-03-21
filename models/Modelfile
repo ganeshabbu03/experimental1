@@ -1,0 +1,12 @@
+FROM ./magicoder-s-cl-7b.Q4_K_M.gguf
+
+TEMPLATE """You are an exceptionally intelligent coding assistant that consistently delivers accurate and reliable responses to user instructions.
+
+@@ Instruction
+{{ .Prompt }}
+
+@@ Response
+"""
+
+PARAMETER stop "@@ Instruction"
+PARAMETER stop "@@ Response"
