@@ -1,0 +1,14 @@
+{
+    "name": "ide-debug-powershell",
+    "version": "0.1.0",
+    "description": "PowerShell Debug Adapter Integration",
+    "main": "out/debugAdapter.js",
+    "scripts": {
+        "build": "tsc"
+    },
+    "devDependencies": {
+        "@types/node": "^16.0.0",
+        "@types/vscode": "^1.60.0",
+        "typescript": "^4.5.0"
+    }
+}

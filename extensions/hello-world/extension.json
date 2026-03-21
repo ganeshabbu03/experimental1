@@ -1,0 +1,22 @@
+{
+    "name": "hello-world",
+    "displayName": "Hello World",
+    "description": "Minimal extension sample",
+    "version": "0.0.1",
+    "publisher": "deexen-internal",
+    "main": "./main.js",
+    "engines": {
+        "deexen": "^0.1.0"
+    },
+    "activationEvents": [
+        "onCommand:hello-world.hello"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "hello-world.hello",
+                "title": "Hello World: Show Message"
+            }
+        ]
+    }
+}

@@ -1,0 +1,37 @@
+{
+    "name": "polyglot-essentials",
+    "displayName": "Polyglot Essentials",
+    "description": "Essential tools for Python, Java, HTML, CSS, React, and JS.",
+    "version": "1.0.0",
+    "publisher": "deexen-internal",
+    "main": "./main.js",
+    "engines": {
+        "deexen": "^1.0.0"
+    },
+    "activationEvents": [
+        "onCommand:polyglot.python.info",
+        "onCommand:polyglot.node.info",
+        "onCommand:polyglot.java.info",
+        "onCommand:polyglot.html.preview"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "polyglot.python.info",
+                "title": "Python: Show Version"
+            },
+            {
+                "command": "polyglot.node.info",
+                "title": "Node.js: Show Version"
+            },
+            {
+                "command": "polyglot.java.info",
+                "title": "Java: Show Version"
+            },
+            {
+                "command": "polyglot.html.preview",
+                "title": "HTML: Preview in Browser"
+            }
+        ]
+    }
+}

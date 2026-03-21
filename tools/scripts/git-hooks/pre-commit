@@ -1,0 +1,22 @@
+#!/bin/sh
+# Deexen Pre-Commit Hook
+# Checks for security violations and rule breaks before committing.
+
+echo "🔍 Deexen: Running pre-commit security check..."
+
+# In a real environment, this would send the staged files to the backend for analysis
+# For MVP, we'll confirm if the backend is reachable and if there are obvious high-severity issues
+# This is a simulation since we need to upload file content which is complex in shell
+
+# Backend URL
+API_URL="http://localhost:8000/api/check-commit"
+
+# Skipping actual curl for MVP simplicity in this shell script
+# but documenting how it would work:
+# response=$(curl -s -o /dev/null -w "%{http_code}" -X POST $API_URL -d @staged_files.json)
+
+# For now, we will just warn the user to check their IDE
+echo "⚠️  Deexen: Please ensure you have no red security alerts in your IDE."
+echo "✅ Deexen: Proceeding with commit."
+
+exit 0

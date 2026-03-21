@@ -1,0 +1,19 @@
+{
+    "name": "ide-core-powershell",
+    "version": "0.1.0",
+    "description": "PowerShell Integration Core for AI-IDE",
+    "main": "out/engine.js",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w"
+    },
+    "dependencies": {
+        "node-pty": "^1.0.0",
+        "vscode-jsonrpc": "^6.0.0",
+        "vscode-ws-jsonrpc": "^0.2.0"
+    },
+    "devDependencies": {
+        "@types/node": "^16.0.0",
+        "typescript": "^4.5.0"
+    }
+}
