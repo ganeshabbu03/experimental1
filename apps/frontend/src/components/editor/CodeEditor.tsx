@@ -196,7 +196,7 @@ export default function CodeEditor() {
                                 base: 'vs-dark',
                                 inherit: true,
                                 rules: [
-                                    { background: '00000000' } // Ensure transparent rules
+                                    { token: '', background: '00000000' } // Ensure transparent rules
                                 ],
                                 colors: {
                                     'editor.background': '#00000000', // Transparent

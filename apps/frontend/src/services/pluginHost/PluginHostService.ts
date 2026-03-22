@@ -2,6 +2,7 @@ import { usePluginStore } from '@/stores/usePluginStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { useFileStore } from '@/stores/useFileStore';
 import { apiClient } from '@/services/apiClient';
+import { runtimeConfig } from '@/config/runtime';
 
 /**
  * PluginHostService
@@ -105,7 +106,7 @@ export class PluginHostService {
 
         // Use full URL if the frontend proxy isn't configured for /api/plugins/file
         // Actually we can just use the standard backend URL.
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+        const backendUrl = runtimeConfig.apiUrl;
         url = `${backendUrl}/plugins/file/${publisher}/${name}/${version}/${path}`;
 
         const headers: Record<string, string> = {};

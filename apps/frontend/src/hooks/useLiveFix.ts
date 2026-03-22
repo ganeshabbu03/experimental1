@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { runtimeConfig, toWebSocketBase } from '@/config/runtime';
 
 export interface LiveFixIssue {
     line: number;
@@ -14,10 +15,7 @@ export function useLiveFix() {
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        // Ensure we strip any trailing /api if present in the base url env since our route is on the root app
-        const cleanBaseUrl = baseUrl.replace(/\/api$/, '');
-        const wsUrl = cleanBaseUrl.replace(/^http/, 'ws') + '/ai/ws/livefix';
+        const wsUrl = `${toWebSocketBase(runtimeConfig.apiUrl)}/ai/ws/livefix`;
 
         const connectWs = () => {
             if (wsRef.current?.readyState === WebSocket.OPEN) return;

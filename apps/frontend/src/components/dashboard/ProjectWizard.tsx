@@ -4,6 +4,7 @@ import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { useToastStore } from '@/stores/useToastStore';
+import { runtimeConfig } from '@/config/runtime';
 
 interface FileNode {
     name: string;
@@ -25,6 +26,7 @@ interface ProjectWizardProps {
 }
 
 export default function ProjectWizard({ isOpen, onClose }: ProjectWizardProps) {
+    const apiBaseUrl = runtimeConfig.apiUrl;
     const [step, setStep] = useState(1);
     const [prompt, setPrompt] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +37,7 @@ export default function ProjectWizard({ isOpen, onClose }: ProjectWizardProps) {
         if (!prompt.trim()) return;
         setIsLoading(true);
         try {
-            const res = await fetch('http://localhost:8000/scaffold/generate', {
+            const res = await fetch(`${apiBaseUrl}/scaffold/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt })
@@ -55,7 +57,7 @@ export default function ProjectWizard({ isOpen, onClose }: ProjectWizardProps) {
         if (!blueprint) return;
         setIsLoading(true);
         try {
-            const res = await fetch('http://localhost:8000/scaffold/create', {
+            const res = await fetch(`${apiBaseUrl}/scaffold/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

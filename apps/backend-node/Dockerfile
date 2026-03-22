@@ -1,4 +1,3 @@
-# apps/backend-node/Dockerfile
 FROM node:22-bookworm-slim
 
 # Workspace service uses git to clone repos, node-pty needs build tools, Prisma needs openssl
@@ -6,8 +5,7 @@ RUN apt-get update && apt-get install -y git openssl python3 build-essential && 
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
-RUN npm audit fix || true
+RUN npm ci
 
 # Generate Prisma client
 COPY prisma ./prisma/
@@ -16,5 +14,8 @@ RUN npx prisma generate
 COPY . .
 RUN npm run build
 
+ENV NODE_ENV=production \
+    PORT=3000
+
 EXPOSE 3000
-CMD ["npm", "run", "start:prod"]
+CMD ["sh", "-c", "npx prisma db push && node dist/main"]

@@ -21,9 +21,17 @@ app = FastAPI(title="Deexen Backend API", version="1.0.0")
 
 # Add CORS middleware
 frontend_url = os.getenv("FRONTEND_URL", "")
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
 allowed_origins = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
 if frontend_url:
     allowed_origins.append(frontend_url)
+if cors_origins_env:
+    allowed_origins.extend(
+        [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    )
+
+# Keep order stable while removing duplicates.
+allowed_origins = list(dict.fromkeys(allowed_origins))
 
 app.add_middleware(
     CORSMiddleware,

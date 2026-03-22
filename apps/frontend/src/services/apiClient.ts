@@ -2,6 +2,7 @@
 // Handles all HTTP requests with authentication, error handling, and retry logic
 
 import { supabase } from './supabaseClient';
+import { runtimeConfig } from '@/config/runtime';
 
 interface ApiResponse<T> {
     data: T;
@@ -19,7 +20,7 @@ class ApiClient {
     public baseUrl: string;
 
     constructor() {
-        this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        this.baseUrl = runtimeConfig.apiUrl;
     }
 
     private async getToken(): Promise<string | null> {
@@ -114,10 +115,18 @@ class ApiClient {
             };
 
             try {
-                const errorData = await response.json();
+                const errorData = (await response.json()) as Record<string, unknown>;
                 // FastAPI returns errors as {detail: "..."} 
-                error.message = errorData.detail || errorData.message || errorData.error || 'Unknown error';
-                error.code = errorData.code;
+                const candidateMessage =
+                    errorData.detail ?? errorData.message ?? errorData.error;
+                if (typeof candidateMessage === 'string' && candidateMessage.trim().length > 0) {
+                    error.message = candidateMessage;
+                } else {
+                    error.message = 'Unknown error';
+                }
+                if (typeof errorData.code === 'string') {
+                    error.code = errorData.code;
+                }
             } catch {
                 // Could not parse error response
             }

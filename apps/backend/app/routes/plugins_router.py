@@ -18,7 +18,7 @@ import shutil
 import time
 import zipfile
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import httpx  # type: ignore
 from fastapi import APIRouter, HTTPException, Query  # type: ignore
@@ -271,18 +271,18 @@ async def download_plugin(publisher: str, extension: str, version: str):
 
                             with open(part_path, "wb") as f:
                                 async for chunk in stream.aiter_bytes(chunk_size=32768):
-                                    chunk_bytes = cast(bytes, chunk)
+                                    chunk_bytes = bytes(chunk)
 
                                     if not checked_first_chunk and len(chunk_bytes) > 0:
                                         checked_first_chunk = True
                                         if not chunk_bytes.startswith(b"PK"):
-                                            preview = chunk_bytes[:120].decode("utf-8", errors="replace")  # type: ignore
+                                            preview = chunk_bytes[:120].decode("utf-8", errors="replace")
                                             raise ValueError(
                                                 "Download endpoint returned a non-VSIX payload "
                                                 f"(starts with: {preview!r})"
                                             )
 
-                                    f.write(chunk_bytes)  # type: ignore
+                                    f.write(chunk_bytes)
                                     downloaded += len(chunk_bytes)
 
                                     if total > 0:
@@ -290,7 +290,7 @@ async def download_plugin(publisher: str, extension: str, version: str):
                                     else:
                                         pct = min(int(downloaded / 1024), 99)
 
-                                    if pct > last_pct + 2:  # type: ignore
+                                    if pct > last_pct + 2:
                                         last_pct = pct
                                         size_str = f"{downloaded / 1048576:.1f}MB"
                                         total_str = f" / {total / 1048576:.1f}MB" if total > 0 else ""

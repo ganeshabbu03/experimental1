@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
+import { runtimeConfig } from '@/config/runtime';
 
 /**
  * Terminal Store: Manages shell sessions and real-time backend communication via Socket.io.
@@ -36,7 +37,9 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     isConnected: false,
 
     connect: () => {
-        const socket = io('http://localhost:3000');
+        const socket = io(runtimeConfig.wsBaseUrl, {
+            transports: ['websocket', 'polling'],
+        });
 
         socket.on('connect', () => {
             console.log('Connected to Terminal Gateway');

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAnalysisStore } from '../stores/useAnalysisStore';
+import { runtimeConfig, toWebSocketBase } from '@/config/runtime';
 
 export function useCodeObserver(activeFileId: string | null, content: string) {
     const ws = useRef<WebSocket | null>(null);
@@ -7,7 +8,8 @@ export function useCodeObserver(activeFileId: string | null, content: string) {
     useEffect(() => {
         // Connect to WebSocket server using random client ID for now
         const clientId = Math.floor(Math.random() * 1000000);
-        ws.current = new WebSocket(`ws://localhost:8000/ws/${clientId}`);
+        const wsBaseUrl = toWebSocketBase(runtimeConfig.apiUrl);
+        ws.current = new WebSocket(`${wsBaseUrl}/ws/${clientId}`);
 
         ws.current.onopen = () => {
             console.log('Connected to Code Observer');

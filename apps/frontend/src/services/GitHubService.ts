@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_WORKSPACE_API_URL || 'http://localhost:3000';
+import { runtimeConfig } from '@/config/runtime';
+
+const API_URL = runtimeConfig.workspaceApiUrl;
 
 export interface Repository {
     id: string;

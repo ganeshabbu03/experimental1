@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { decrypt } from '../common/encryption';
 import * as Docker from 'dockerode';
@@ -8,12 +8,24 @@ import * as path from 'path';
 
 @Injectable()
 export class WorkspaceService {
-    private docker: Docker;
+    private readonly logger = new Logger(WorkspaceService.name);
+    private docker: Docker | null;
     private git: simpleGit.SimpleGit;
 
     constructor(private prisma: PrismaService) {
         this.docker = new Docker();
         this.git = simpleGit.default();
+    }
+
+    private isDockerUnavailableError(message: string): boolean {
+        const normalized = message.toLowerCase();
+        return (
+            normalized.includes('docker') &&
+            (normalized.includes('socket') ||
+                normalized.includes('econnrefused') ||
+                normalized.includes('enoent') ||
+                normalized.includes('permission denied'))
+        );
     }
 
     async createWorkspace(userId: string, repoId: string, repoName: string, cloneUrl: string) {
@@ -46,6 +58,25 @@ export class WorkspaceService {
             throw new InternalServerErrorException(`Failed to clone repository: ${e.message}`);
         }
 
+        const dockerWorkspacesEnabled = process.env.ENABLE_DOCKER_WORKSPACES !== 'false';
+        if (!dockerWorkspacesEnabled) {
+            return this.prisma.workspace.create({
+                data: {
+                    userId,
+                    name: repoName,
+                    repoUrl: cloneUrl,
+                    repoId: repoId.toString(),
+                    containerId: null,
+                    status: 'STOPPED',
+                    isGitLinked: true,
+                },
+            });
+        }
+
+        if (!this.docker) {
+            throw new InternalServerErrorException('Docker client is not initialized');
+        }
+
         // 4. Create Docker Container
         try {
             const container = await this.docker.createContainer({
@@ -68,7 +99,7 @@ export class WorkspaceService {
             await container.start();
 
             // 5. Save Workspace Metadata
-            const workspace = await this.prisma.workspace.create({
+            return this.prisma.workspace.create({
                 data: {
                     userId,
                     name: repoName,
@@ -80,10 +111,26 @@ export class WorkspaceService {
                 },
             });
 
-            return workspace;
-
         } catch (e) {
-            throw new InternalServerErrorException(`Failed to provision container: ${e.message}`);
+            const message = e instanceof Error ? e.message : String(e);
+            if (this.isDockerUnavailableError(message)) {
+                this.logger.warn(
+                    `Docker is unavailable (${message}). Falling back to metadata-only workspace mode.`,
+                );
+                return this.prisma.workspace.create({
+                    data: {
+                        userId,
+                        name: repoName,
+                        repoUrl: cloneUrl,
+                        repoId: repoId.toString(),
+                        containerId: null,
+                        status: 'STOPPED',
+                        isGitLinked: true,
+                    },
+                });
+            }
+
+            throw new InternalServerErrorException(`Failed to provision container: ${message}`);
         }
     }
 

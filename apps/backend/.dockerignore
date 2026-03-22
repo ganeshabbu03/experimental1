@@ -3,3 +3,7 @@ __pycache__
 .venv
 .git
 .vscode
+.env
+.env.*
+storage
+.pytest_cache

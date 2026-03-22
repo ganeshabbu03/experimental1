@@ -16,6 +16,7 @@ import { CommandRegistryService } from './extensions/command-registry.service';
 import { TerminalApiService } from './extensions/terminal-api.service';
 import { ExtensionHostProcessService } from './extensions/extension-host-process.service';
 import { ExtensionsGateway } from './extensions/extensions.gateway';
+import { HealthController } from './health.controller';
 
 // Root Application Module
 @Module({
@@ -27,7 +28,7 @@ import { ExtensionsGateway } from './extensions/extensions.gateway';
         GithubModule,
         WorkspaceModule,
     ],
-    controllers: [],
+    controllers: [HealthController],
     providers: [PrismaService, TerminalGateway, ExtensionHostService, ExtensionApiFrameworkService, LspGateway, ExtensionRegistryDbService, OpenVsxClientService, VsixInstallerService, ExtensionManagerService, CommandRegistryService, TerminalApiService, ExtensionHostProcessService, ExtensionsGateway],
     exports: [PrismaService],
 })

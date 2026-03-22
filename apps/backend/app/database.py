@@ -32,12 +32,12 @@ def _engine_for(url: str):
 
 
 primary_url = os.getenv('DATABASE_URL', 'sqlite:///./deexen_demo.db')
-fallback_url = os.getenv('DATABASE_FALLBACK_URL', 'mysql+pymysql://root:882004@localhost:3306/deexendemo')
+fallback_url = os.getenv('DATABASE_FALLBACK_URL')
 
 engine = _engine_for(primary_url)
 DATABASE_URL = primary_url
 
-# Wait for primary DB to be ready, otherwise fallback to local MySQL for dev.
+# Wait for primary DB to be ready, otherwise fallback to auxiliary DB only if explicitly configured.
 retries = 5
 while retries > 0:
     try:
