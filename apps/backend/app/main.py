@@ -51,6 +51,11 @@ app.add_middleware(SessionMiddleware, secret_key="deexen-session-secret-key-chan
 def health_check():
     return {"status": "ok"}
 
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "deexen-backend"}
+
 # Include routers
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(profile.router, prefix="/profile", tags=["Profile"])
