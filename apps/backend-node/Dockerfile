@@ -18,4 +18,4 @@ ENV NODE_ENV=production \
     PORT=3000
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma db push && node dist/main"]
+CMD ["sh", "-c", "if [ -n \"${DATABASE_URL}\" ]; then npx prisma db push || echo \"[warn] prisma db push failed; continuing startup\"; else echo \"[warn] DATABASE_URL not set; skipping prisma db push\"; fi; node dist/main"]
