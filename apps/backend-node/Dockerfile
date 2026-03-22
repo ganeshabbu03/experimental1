@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y git openssl python3 build-essential && 
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm ci || npm install
 
 # Generate Prisma client
 COPY prisma ./prisma/
