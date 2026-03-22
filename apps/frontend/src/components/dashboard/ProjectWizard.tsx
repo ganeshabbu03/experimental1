@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Sparkles, ArrowRight, FolderTree, Code, CheckCircle, Loader2, BookOpen } from 'lucide-react';
+import { Sparkles, ArrowRight, FolderTree, Code, CheckCircle, BookOpen } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import { useToastStore } from '@/stores/useToastStore';
 

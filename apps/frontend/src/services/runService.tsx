@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react';
-import { useTerminalStore } from '@/stores/useTerminalStore';
 import { type FileNode } from '@/stores/useFileStore';
 import { useOutputStore } from '@/stores/useOutputStore';
 
@@ -22,19 +21,14 @@ const EXTENSION_MAP: Record<string, { language: string, version: string }> = {
 
 export const runService = {
     runCode: async (file: FileNode, activeFileContent?: string, stdin?: string) => {
-        const { addToHistory, setActiveTab } = useTerminalStore.getState();
         const { addLine, clear } = useOutputStore.getState();
         const content = activeFileContent || file.content || '';
-
-        // Switch to output tab
-        setActiveTab('output');
 
         // Clear previous output
         clear();
 
         // Helper to write to both terminal and output
-        const writeOutput = (terminalContent: ReactNode, outputText: string, outputType: 'stdout' | 'stderr' | 'info' | 'success' | 'error' = 'stdout') => {
-            addToHistory(terminalContent);
+        const writeOutput = (_terminalContent: ReactNode, outputText: string, outputType: 'stdout' | 'stderr' | 'info' | 'success' | 'error' = 'stdout') => {
             addLine(outputText, outputType);
         };
 
@@ -105,12 +99,10 @@ export const runService = {
     },
 
     executeWithPiston: async (file: FileNode, content: string, stdin?: string) => {
-        const { addToHistory } = useTerminalStore.getState();
         const { addLine } = useOutputStore.getState();
 
         // Helper to write to both terminal and output
-        const writeOutput = (terminalContent: ReactNode, outputText: string, outputType: 'stdout' | 'stderr' | 'info' | 'success' | 'error' = 'stdout') => {
-            addToHistory(terminalContent);
+        const writeOutput = (_terminalContent: ReactNode, outputText: string, outputType: 'stdout' | 'stderr' | 'info' | 'success' | 'error' = 'stdout') => {
             addLine(outputText, outputType);
         };
 

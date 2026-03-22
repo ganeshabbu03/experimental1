@@ -43,7 +43,7 @@ export const useAuthStore = create<AuthState>()(
 
             initialize: () => {
                 // 1. Check for an existing Supabase session (handles OAuth redirects)
-                supabase.auth.getSession().then(({ data: { session } }) => {
+                supabase.auth.getSession().then(({ data: { session } }: { data: { session: { user: { id: string; email?: string; user_metadata?: Record<string, string>; created_at: string }; access_token: string } | null } }) => {
                     if (session?.user && session?.access_token) {
                         const { user, token } = mapSupabaseUser(session.user, session.access_token);
                         set({
@@ -61,7 +61,7 @@ export const useAuthStore = create<AuthState>()(
                 });
 
                 // 2. Listen for future auth state changes (token refresh, sign-out, etc.)
-                supabase.auth.onAuthStateChange((_event, session) => {
+                supabase.auth.onAuthStateChange((_event: string, session: { user: { id: string; email?: string; user_metadata?: Record<string, string>; created_at: string }; access_token: string } | null) => {
                     if (session?.user && session?.access_token) {
                         const { user, token } = mapSupabaseUser(session.user, session.access_token);
                         set({
