@@ -3,12 +3,44 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 import os
 import time
+from urllib.parse import urlsplit, urlunsplit
 from dotenv import load_dotenv
 
 # Load env from apps/backend/.env
 load_dotenv()
 
 Base = declarative_base()
+
+
+def _pick_database_url() -> tuple[str, str]:
+    candidates = [
+        ("DEEXEN_DATABASE_URL", os.getenv("DEEXEN_DATABASE_URL")),
+        ("SUPABASE_DATABASE_URL", os.getenv("SUPABASE_DATABASE_URL")),
+        ("DATABASE_URL", os.getenv("DATABASE_URL")),
+    ]
+    for name, value in candidates:
+        if value and value.strip():
+            return value.strip(), name
+    return "sqlite:///./deexen_demo.db", "default-sqlite"
+
+
+def _redact_url(url: str) -> str:
+    try:
+        parsed = urlsplit(url)
+        if not parsed.netloc:
+            return url
+
+        host_port = parsed.hostname or ""
+        if parsed.port:
+            host_port = f"{host_port}:{parsed.port}"
+
+        redacted_netloc = host_port
+        if parsed.username:
+            redacted_netloc = f"{parsed.username}:***@{host_port}"
+
+        return urlunsplit((parsed.scheme, redacted_netloc, parsed.path, parsed.query, parsed.fragment))
+    except Exception:
+        return "<redacted>"
 
 
 def _engine_for(url: str):
@@ -37,11 +69,12 @@ def _engine_for(url: str):
     )
 
 
-primary_url = os.getenv('DATABASE_URL', 'sqlite:///./deexen_demo.db')
+primary_url, primary_source = _pick_database_url()
 fallback_url = (os.getenv('DATABASE_FALLBACK_URL') or '').strip() or None
 
 engine = _engine_for(primary_url)
 DATABASE_URL = primary_url
+print(f"[db] using {primary_source}: {_redact_url(primary_url)}")
 
 # Wait for primary DB to be ready, otherwise fallback to auxiliary DB only if explicitly configured.
 retries = int(os.getenv('DB_CONNECT_RETRIES', '5'))
