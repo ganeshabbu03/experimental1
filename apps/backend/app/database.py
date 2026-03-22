@@ -18,7 +18,13 @@ def _engine_for(url: str):
     if url_l.startswith('sqlite'):
         connect_args = {'check_same_thread': False}
     elif url_l.startswith('postgresql') or url_l.startswith('postgres'):
-        connect_args = {'connect_timeout': 4}
+        # Supabase/Postgres compatibility:
+        # force public schema unless explicitly overridden.
+        db_schema = (os.getenv('DB_SCHEMA') or 'public').strip() or 'public'
+        connect_args = {
+            'connect_timeout': 4,
+            'options': f'-csearch_path={db_schema}',
+        }
     elif url_l.startswith('mysql'):
         connect_args = {'connect_timeout': 4}
 

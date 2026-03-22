@@ -40,6 +40,29 @@ def _quote_identifier(engine: Engine, identifier: str) -> str:
     return f'"{identifier}"'
 
 
+def ensure_core_tables(engine: Engine) -> None:
+    # Import lazily to avoid circular imports during module load.
+    from app.models.file import File
+    from app.models.project import Project
+    from app.models.user import User
+
+    required_tables = [User.__table__, Project.__table__, File.__table__]
+    try:
+        existing_tables = set(inspect(engine).get_table_names())
+    except SQLAlchemyError as exc:
+        logger.warning("Skipping core table check; cannot inspect DB: %s", exc)
+        return
+
+    try:
+        for table in required_tables:
+            if table.name in existing_tables:
+                continue
+            table.create(bind=engine, checkfirst=True)
+            logger.info("Created missing table: %s", table.name)
+    except SQLAlchemyError as exc:
+        logger.warning("Core table bootstrap failed: %s", exc)
+
+
 def ensure_schema_compatibility(engine: Engine) -> None:
     try:
         inspector = inspect(engine)

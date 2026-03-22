@@ -10,7 +10,7 @@ load_dotenv()
 from app.routes import auth, profile, projects, oauth, terminal
 from app.routes.plugins_router import router as plugins_router
 from app.database import Base, engine
-from app.db_bootstrap import ensure_schema_compatibility
+from app.db_bootstrap import ensure_core_tables, ensure_schema_compatibility
 from app.models.user import User
 from app.models.project import Project
 from app.models.file import File
@@ -18,6 +18,7 @@ from app.models.file import File
 # Create all tables on startup
 try:
     Base.metadata.create_all(bind=engine)
+    ensure_core_tables(engine)
     ensure_schema_compatibility(engine)
 except Exception as exc:
     print(f"[warn] Database schema bootstrap failed during startup: {exc}")
