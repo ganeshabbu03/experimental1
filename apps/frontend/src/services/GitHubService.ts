@@ -13,6 +13,39 @@ export interface Repository {
     default_branch: string;
 }
 
+function getAuthContext(): { token?: string; userId?: string; userEmail?: string } {
+    try {
+        const stored = localStorage.getItem('deexen-auth-storage');
+        if (!stored) return {};
+        const parsed = JSON.parse(stored);
+        const state = parsed?.state || {};
+        return {
+            token: typeof state.token === 'string' ? state.token : undefined,
+            userId: typeof state.user?.id === 'string' ? state.user.id : undefined,
+            userEmail: typeof state.user?.email === 'string' ? state.user.email : undefined,
+        };
+    } catch {
+        return {};
+    }
+}
+
+function createHeaders(extra: Record<string, string> = {}): HeadersInit {
+    const auth = getAuthContext();
+    const headers: Record<string, string> = {
+        ...extra,
+    };
+    if (auth.token) {
+        headers['Authorization'] = `Bearer ${auth.token}`;
+    }
+    if (auth.userId) {
+        headers['x-user-id'] = auth.userId;
+    }
+    if (auth.userEmail) {
+        headers['x-user-email'] = auth.userEmail;
+    }
+    return headers;
+}
+
 export const GitHubService = {
     async startAuth() {
         // Redirects to Backend OAuth endpoint
@@ -20,16 +53,13 @@ export const GitHubService = {
     },
 
     async listRepos(): Promise<Repository[]> {
-        // const token = localStorage.getItem('auth_token'); // Assuming some auth method
-        // In this MVP, we might rely on session cookies or just mocking the user ID header
         const response = await fetch(`${API_URL}/github/repos`, {
-            headers: {
-                'x-user-id': 'test-user-id', // Mocked as per backend
-            },
+            headers: createHeaders(),
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch repositories');
+            const detail = await response.text().catch(() => '');
+            throw new Error(`Failed to fetch repositories (${response.status})${detail ? `: ${detail}` : ''}`);
         }
 
         return response.json();
@@ -38,10 +68,9 @@ export const GitHubService = {
     async importRepo(repo: Repository) {
         const response = await fetch(`${API_URL}/workspaces/import`, {
             method: 'POST',
-            headers: {
+            headers: createHeaders({
                 'Content-Type': 'application/json',
-                'x-user-id': 'test-user-id',
-            },
+            }),
             body: JSON.stringify({
                 repoId: repo.id,
                 repoName: repo.name,
@@ -50,7 +79,8 @@ export const GitHubService = {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to import repository');
+            const detail = await response.text().catch(() => '');
+            throw new Error(`Failed to import repository (${response.status})${detail ? `: ${detail}` : ''}`);
         }
 
         return response.json();

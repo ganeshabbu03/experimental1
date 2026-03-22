@@ -28,28 +28,52 @@ export class WorkspaceService {
         );
     }
 
-    async createWorkspace(userId: string, repoId: string, repoName: string, cloneUrl: string) {
-        // 1. Retrieve and Decrypt Token
-        const connection = await this.prisma.gitHubConnection.findUnique({ where: { userId } });
-        if (!connection) throw new NotFoundException('GitHub connection not found');
-        const token = decrypt(connection.accessToken);
+    private async resolveUserId(userId?: string, userEmail?: string): Promise<string> {
+        if (userId && userId.trim().length > 0) {
+            return userId.trim();
+        }
+
+        const normalizedEmail = userEmail?.trim().toLowerCase();
+        if (!normalizedEmail) {
+            throw new NotFoundException('User identity is required');
+        }
+
+        const user = await this.prisma.user.findUnique({
+            where: { email: normalizedEmail },
+        });
+        if (!user) {
+            throw new NotFoundException('User not found for provided email');
+        }
+        return user.id;
+    }
+
+    async createWorkspace(userId: string | undefined, repoId: string, repoName: string, cloneUrl: string, userEmail?: string) {
+        const resolvedUserId = await this.resolveUserId(userId, userEmail);
+
+        // 1. Retrieve and Decrypt Token if user has linked GitHub account.
+        const connection = await this.prisma.gitHubConnection.findUnique({ where: { userId: resolvedUserId } });
+        const token = connection ? decrypt(connection.accessToken) : null;
 
         // 2. Prepare Host Directory
         const workspaceId = `ws-${Date.now()}`;
         // Using a temp path for now, in prod this should be a persistent volume
-        const hostPath = path.resolve(process.cwd(), 'workspaces', userId, repoName);
+        const hostPath = path.resolve(process.cwd(), 'workspaces', resolvedUserId, repoName);
 
         if (!fs.existsSync(hostPath)) {
             fs.mkdirSync(hostPath, { recursive: true });
         }
 
-        // 3. Clone Repository with Token
-        // Inject token into URL: https://oauth2:TOKEN@github.com/user/repo.git
-        const authenticatedUrl = cloneUrl.replace('https://', `https://oauth2:${token}@`);
+        // 3. Clone repository.
+        // For linked GitHub accounts we inject token to support private repositories.
+        // For public repositories we allow plain clone URLs without requiring a saved connection.
+        const cloneTargetUrl =
+            token && cloneUrl.startsWith('https://')
+                ? cloneUrl.replace('https://', `https://oauth2:${token}@`)
+                : cloneUrl;
 
         try {
             if (!fs.existsSync(path.join(hostPath, '.git'))) {
-                await this.git.clone(authenticatedUrl, hostPath);
+                await this.git.clone(cloneTargetUrl, hostPath);
             } else {
                 // Already exists, maybe pull?
                 await simpleGit.default(hostPath).pull();
@@ -62,7 +86,7 @@ export class WorkspaceService {
         if (!dockerWorkspacesEnabled) {
             return this.prisma.workspace.create({
                 data: {
-                    userId,
+                    userId: resolvedUserId,
                     name: repoName,
                     repoUrl: cloneUrl,
                     repoId: repoId.toString(),
@@ -90,10 +114,10 @@ export class WorkspaceService {
                 },
                 WorkingDir: '/workspace',
                 Env: [
-                    `GITHUB_TOKEN=${token}`,
-                    `GIT_AUTHOR_NAME=${connection.username}`,
-                    `GIT_AUTHOR_EMAIL=${connection.username}@users.noreply.github.com`
-                ]
+                    ...(token ? [`GITHUB_TOKEN=${token}`] : []),
+                    `GIT_AUTHOR_NAME=${connection?.username || 'deexen-user'}`,
+                    `GIT_AUTHOR_EMAIL=${connection?.username || 'deexen-user'}@users.noreply.github.com`
+                ],
             });
 
             await container.start();
@@ -101,7 +125,7 @@ export class WorkspaceService {
             // 5. Save Workspace Metadata
             return this.prisma.workspace.create({
                 data: {
-                    userId,
+                    userId: resolvedUserId,
                     name: repoName,
                     repoUrl: cloneUrl,
                     repoId: repoId.toString(),
@@ -119,7 +143,7 @@ export class WorkspaceService {
                 );
                 return this.prisma.workspace.create({
                     data: {
-                        userId,
+                        userId: resolvedUserId,
                         name: repoName,
                         repoUrl: cloneUrl,
                         repoId: repoId.toString(),
@@ -134,7 +158,8 @@ export class WorkspaceService {
         }
     }
 
-    async listWorkspaces(userId: string) {
-        return this.prisma.workspace.findMany({ where: { userId } });
+    async listWorkspaces(userId?: string, userEmail?: string) {
+        const resolvedUserId = await this.resolveUserId(userId, userEmail);
+        return this.prisma.workspace.findMany({ where: { userId: resolvedUserId } });
     }
 }

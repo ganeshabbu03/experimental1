@@ -7,13 +7,19 @@ export class WorkspaceController {
 
     @Post('import')
     async importRepository(@Req() req, @Body() body: { repoId: string; repoName: string; cloneUrl: string }) {
-        const userId = req.headers['x-user-id'] || 'test-user-id'; // Mock User ID
-        return this.workspaceService.createWorkspace(userId, body.repoId, body.repoName, body.cloneUrl);
+        const userIdHeader = req.headers['x-user-id'];
+        const emailHeader = req.headers['x-user-email'];
+        const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
+        const userEmail = Array.isArray(emailHeader) ? emailHeader[0] : emailHeader;
+        return this.workspaceService.createWorkspace(userId, body.repoId, body.repoName, body.cloneUrl, userEmail);
     }
 
     @Get()
     async listWorkspaces(@Req() req) {
-        const userId = req.headers['x-user-id'] || 'test-user-id';
-        return this.workspaceService.listWorkspaces(userId);
+        const userIdHeader = req.headers['x-user-id'];
+        const emailHeader = req.headers['x-user-email'];
+        const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
+        const userEmail = Array.isArray(emailHeader) ? emailHeader[0] : emailHeader;
+        return this.workspaceService.listWorkspaces(userId, userEmail);
     }
 }

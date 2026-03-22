@@ -74,37 +74,50 @@ class ApiClient {
             return this.handleResponse<T>(response);
         } catch (e) {
             console.error(`[apiClient] network error on GET ${endpoint}:`, e);
-            throw e;
+            const message = e instanceof Error ? e.message : String(e);
+            throw new Error(`Failed to reach API (${this.baseUrl}${endpoint}): ${message}`);
         }
     }
 
     async post<T>(endpoint: string, data?: unknown): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
-            method: 'POST',
-            headers: await this.getHeaders(),
-            body: data ? JSON.stringify(data) : undefined,
-        });
-
-        return this.handleResponse<T>(response);
+        try {
+            const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                method: 'POST',
+                headers: await this.getHeaders(),
+                body: data ? JSON.stringify(data) : undefined,
+            });
+            return this.handleResponse<T>(response);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            throw new Error(`Failed to reach API (${this.baseUrl}${endpoint}): ${message}`);
+        }
     }
 
     async put<T>(endpoint: string, data?: unknown): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
-            method: 'PUT',
-            headers: await this.getHeaders(),
-            body: data ? JSON.stringify(data) : undefined,
-        });
-
-        return this.handleResponse<T>(response);
+        try {
+            const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                method: 'PUT',
+                headers: await this.getHeaders(),
+                body: data ? JSON.stringify(data) : undefined,
+            });
+            return this.handleResponse<T>(response);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            throw new Error(`Failed to reach API (${this.baseUrl}${endpoint}): ${message}`);
+        }
     }
 
     async delete<T>(endpoint: string): Promise<T> {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
-            method: 'DELETE',
-            headers: await this.getHeaders(),
-        });
-
-        return this.handleResponse<T>(response);
+        try {
+            const response = await fetch(`${this.baseUrl}${endpoint}`, {
+                method: 'DELETE',
+                headers: await this.getHeaders(),
+            });
+            return this.handleResponse<T>(response);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            throw new Error(`Failed to reach API (${this.baseUrl}${endpoint}): ${message}`);
+        }
     }
 
     private async handleResponse<T>(response: Response): Promise<T> {

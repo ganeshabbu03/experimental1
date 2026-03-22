@@ -9,9 +9,10 @@ export class GithubController {
     @Get('repos')
     // @UseGuards(JwtAuthGuard) // TODO: Implement JWT Guard
     async listRepos(@Req() req) {
-        // Mocking user ID for now since we don't have the full JWT stack in this snippet
-        // In production, get userId from req.user.id
-        const userId = req.headers['x-user-id'] || 'test-user-id';
-        return this.githubService.listRepositories(userId);
+        const userIdHeader = req.headers['x-user-id'];
+        const emailHeader = req.headers['x-user-email'];
+        const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
+        const userEmail = Array.isArray(emailHeader) ? emailHeader[0] : emailHeader;
+        return this.githubService.listRepositories(userId, userEmail);
     }
 }

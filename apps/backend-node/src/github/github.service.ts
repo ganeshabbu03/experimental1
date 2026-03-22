@@ -6,10 +6,23 @@ import { decrypt } from '../common/encryption';
 export class GithubService {
     constructor(private prisma: PrismaService) { }
 
-    async listRepositories(userId: string) {
-        const connection = await this.prisma.gitHubConnection.findUnique({
-            where: { userId },
-        });
+    async listRepositories(userId?: string, userEmail?: string) {
+        let connection = userId
+            ? await this.prisma.gitHubConnection.findUnique({
+                where: { userId },
+            })
+            : null;
+
+        if (!connection && userEmail) {
+            const user = await this.prisma.user.findUnique({
+                where: { email: userEmail.toLowerCase() },
+            });
+            if (user) {
+                connection = await this.prisma.gitHubConnection.findUnique({
+                    where: { userId: user.id },
+                });
+            }
+        }
 
         if (!connection) {
             throw new UnauthorizedException('No GitHub connection found');

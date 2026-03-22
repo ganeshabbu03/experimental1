@@ -12,7 +12,19 @@ async function bootstrap() {
     const allowedOrigins = Array.from(new Set([...localOrigins, ...configuredOrigins]));
 
     app.enableCors({
-        origin: allowedOrigins,
+        origin: (origin, callback) => {
+            if (!origin) {
+                callback(null, true);
+                return;
+            }
+            const isAllowedExplicitly = allowedOrigins.includes(origin);
+            const isRailwayDomain = /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i.test(origin);
+            if (isAllowedExplicitly || isRailwayDomain) {
+                callback(null, true);
+                return;
+            }
+            callback(new Error(`CORS blocked origin: ${origin}`), false);
+        },
         credentials: true,
     });
     app.useGlobalPipes(new ValidationPipe());
