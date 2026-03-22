@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000'; // Environment variable in production
+const API_URL = import.meta.env.VITE_WORKSPACE_API_URL || 'http://localhost:3000';
 
 export interface Repository {
     id: string;

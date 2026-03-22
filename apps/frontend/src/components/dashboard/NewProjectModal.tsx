@@ -1,21 +1,21 @@
 import { useState } from 'react';
-import { X, Box, LayoutTemplate, Github } from 'lucide-react';
+import { X, Box, LayoutTemplate, Github, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useProjectStore } from '@/stores/useProjectStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { GitHubService, type Repository } from '@/services/GitHubService';
 
 interface NewProjectModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-type Step = 'select-type' | 'configure-blank';
+type Step = 'select-type' | 'configure-blank' | 'configure-import';
 type ProjectType = 'blank' | 'template' | 'import';
 
 export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
-    if (!isOpen) return null;
 
     const { createProjectAPI } = useProjectStore();
     const { addToast } = useToastStore();
@@ -26,12 +26,45 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
     const [description, setDescription] = useState('');
     const [isCreating, setIsCreating] = useState(false);
 
-    const handleTypeSelect = (type: ProjectType) => {
+    // Import Repository State
+    const [repos, setRepos] = useState<Repository[]>([]);
+    const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+    const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
+    const [isImporting, setIsImporting] = useState(false);
+
+    const handleTypeSelect = async (type: ProjectType) => {
         if (type === 'blank') {
             setStep('configure-blank');
+        } else if (type === 'import') {
+            setStep('configure-import');
+            setIsLoadingRepos(true);
+            try {
+                const fetchedRepos = await GitHubService.listRepos();
+                setRepos(fetchedRepos);
+            } catch {
+                addToast('Failed to load GitHub repositories. Make sure you are logged in with GitHub.', 'error');
+            } finally {
+                setIsLoadingRepos(false);
+            }
         } else {
-            // For now, these are placeholders
-            alert("This feature is coming soon!");
+            addToast('Templates are coming soon!', 'info');
+        }
+    };
+
+    const handleImport = async () => {
+        if (!selectedRepo) return;
+        setIsImporting(true);
+        try {
+            await GitHubService.importRepo(selectedRepo);
+            addToast(`Repository "${selectedRepo.name}" imported successfully!`, 'success');
+            onClose();
+            setStep('select-type');
+            setSelectedRepo(null);
+            setRepos([]);
+        } catch {
+            addToast('Failed to import repository. Please try again.', 'error');
+        } finally {
+            setIsImporting(false);
         }
     };
 
@@ -85,6 +118,8 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
         }
     ];
 
+    if (!isOpen) return null;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="w-full max-w-2xl bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -92,7 +127,7 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-default)]">
                     <h2 className="text-lg font-display font-medium text-[var(--text-primary)]">
-                        {step === 'select-type' ? 'Create New Project' : 'Configure Project'}
+                        {step === 'select-type' ? 'Create New Project' : step === 'configure-import' ? 'Import Repository' : 'Configure Project'}
                     </h2>
                     <button
                         onClick={onClose}
@@ -125,6 +160,48 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
                                     </button>
                                 );
                             })}
+                        </div>
+                    ) : step === 'configure-import' ? (
+                        <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                            {isLoadingRepos ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)]">
+                                    <Loader2 className="w-8 h-8 animate-spin text-purple-500 mb-3" />
+                                    <p className="text-sm">Loading your GitHub repositories...</p>
+                                </div>
+                            ) : repos.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-[var(--text-secondary)]">
+                                    <Github className="w-10 h-10 mb-3 opacity-40" />
+                                    <p className="text-sm mb-1">No repositories found</p>
+                                    <p className="text-xs opacity-60">Make sure you are logged in with GitHub</p>
+                                </div>
+                            ) : (
+                                <div className="max-h-[350px] overflow-y-auto space-y-2 pr-1">
+                                    {repos.map((repo) => (
+                                        <button
+                                            key={repo.id}
+                                            onClick={() => setSelectedRepo(repo)}
+                                            className={cn(
+                                                "w-full flex items-start p-3 rounded-lg border text-left transition-all duration-150",
+                                                selectedRepo?.id === repo.id
+                                                    ? "border-purple-500 bg-purple-500/10"
+                                                    : "border-[var(--border-default)] hover:border-purple-500/30 hover:bg-white/5"
+                                            )}
+                                        >
+                                            <Github className="w-4 h-4 mt-0.5 mr-3 text-purple-400 shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-[var(--text-primary)] truncate">{repo.full_name}</p>
+                                                {repo.description && (
+                                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5 line-clamp-1">{repo.description}</p>
+                                                )}
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-[10px] text-[var(--text-tertiary)]">{repo.default_branch}</span>
+                                                    {repo.private && <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 rounded">Private</span>}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
@@ -171,6 +248,23 @@ export default function NewProjectModal({ isOpen, onClose }: NewProjectModalProp
                                 className="bg-orange-600 hover:bg-orange-700 text-white min-w-[120px]"
                             >
                                 {isCreating ? 'Creating...' : 'Create Project'}
+                            </Button>
+                        </>
+                    ) : step === 'configure-import' ? (
+                        <>
+                            <button
+                                onClick={() => { setStep('select-type'); setSelectedRepo(null); setRepos([]); }}
+                                className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                            >
+                                Back
+                            </button>
+                            <Button
+                                onClick={handleImport}
+                                isLoading={isImporting}
+                                disabled={!selectedRepo}
+                                className="bg-purple-600 hover:bg-purple-700 text-white min-w-[120px]"
+                            >
+                                {isImporting ? 'Importing...' : 'Import Repository'}
                             </Button>
                         </>
                     ) : (
