@@ -1,0 +1,16 @@
+psycopg2-binary
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+email-validator
+python-dotenv
+authlib
+httpx
+google-generativeai
+itsdangerous
+markdown
+supabase
