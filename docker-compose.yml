@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: deexen
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: deexen
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./apps/backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://deexen:password@db:5432/deexen
+      # Uncomment next line and remove environment variables above if you prefer using your local .env
+      # env_file:
+      - ./apps/backend/.env
+    depends_on:
+      - db
+
+  backend-node:
+    build:
+      context: ./apps/backend-node
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://deexen:password@db:5432/deexen
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      args:
+        - VITE_API_URL=http://localhost:8000
+        - VITE_WORKSPACE_API_URL=http://localhost:3000
+        - VITE_WS_URL=http://localhost:3000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+      - backend-node
+
+volumes:
+  postgres_data:

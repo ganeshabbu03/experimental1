@@ -1,0 +1,340 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "fullName": "Docker Scout",
+          "informationUri": "https://docker.com/products/docker-scout",
+          "name": "docker scout",
+          "rules": [
+            {
+              "id": "RUSTSEC-2017-0008",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "RUSTSEC-2017-0008"
+              },
+              "helpUri": "https://scout.docker.com/v/RUSTSEC-2017-0008?s=rustsec&n=serial&t=cargo&vr=%3E%3D0.0.0-0",
+              "help": {
+                "text": "The [`serial`](https://crates.io/crates/serial) crate is no longer maintained.\n\nLast release was on 2017-07-02.\n\n## Possible alternatives\n\nConsider using an alternative, for instance the blocking librarys:\n\n- [serial2](https://crates.io/crates/serial2)\n- [serialport](https://crates.io/crates/serialport)\n\nor async alternatives:\n\n- [mio-serial](https://crates.io/crates/mio-serial)\n- [tokio-serial](https://crates.io/crates/tokio-serial)\n",
+                "markdown": "> The [`serial`](https://crates.io/crates/serial) crate is no longer maintained.\n\nLast release was on 2017-07-02.\n\n## Possible alternatives\n\nConsider using an alternative, for instance the blocking librarys:\n\n- [serial2](https://crates.io/crates/serial2)\n- [serialport](https://crates.io/crates/serialport)\n\nor async alternatives:\n\n- [mio-serial](https://crates.io/crates/mio-serial)\n- [tokio-serial](https://crates.io/crates/tokio-serial)\n\n|                |                        |\n|----------------|------------------------|\n| Package        | pkg:cargo/serial@0.4.0 |\n| Affected range | >=0.0.0-0              |\n| Fixed version  | not fixed              |\n"
+              },
+              "properties": {
+                "affected_version": ">=0.0.0-0",
+                "cvssV3_severity": "UNSPECIFIED",
+                "fixed_version": "not fixed",
+                "purls": [
+                  "pkg:cargo/serial@0.4.0"
+                ],
+                "security-severity": "3.1",
+                "tags": [
+                  "UNSPECIFIED"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-1703",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-1703: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-1703?s=github&n=pip&t=pypi&vr=%3C26.0",
+              "help": {
+                "text": "When pip is installing and extracting a maliciously crafted wheel archive, files may be extracted outside the installation directory. The path traversal is limited to prefixes of the installation directory, thus isn't able to inject or overwrite executable files in typical situations.\n",
+                "markdown": "> When pip is installing and extracting a maliciously crafted wheel archive, files may be extracted outside the installation directory. The path traversal is limited to prefixes of the installation directory, thus isn't able to inject or overwrite executable files in typical situations.\n\n|                |                                                                 |\n|----------------|-----------------------------------------------------------------|\n| Package        | pkg:pypi/pip@25.3                                               |\n| Affected range | <26.0                                                           |\n| Fixed version  |                                                            26.0 |\n| CVSS Score     |                                                             2.0 |\n| CVSS Vector    | CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N |\n"
+              },
+              "properties": {
+                "affected_version": "<26.0",
+                "cvssV3": 2,
+                "cvssV3_severity": "LOW",
+                "cvssV3_vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+                "fixed_version": "26.0",
+                "purls": [
+                  "pkg:pypi/pip@25.3"
+                ],
+                "security-severity": "2.0",
+                "tags": [
+                  "LOW"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-29409",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-29409: OWASP Top Ten 2017 Category A9 - Using Components with Known Vulnerabilities"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2024-29409?s=gitlab&n=common&ns=%40nestjs&t=npm&vr=%3C11.0.16",
+              "help": {
+                "text": "File Upload vulnerability in nestjs nest prior to v.11.0.16 allows a remote attacker to execute arbitrary code via the Content-Type header.\n",
+                "markdown": "> File Upload vulnerability in nestjs nest prior to v.11.0.16 allows a remote attacker to execute arbitrary code via the Content-Type header.\n\n|                |                                              |\n|----------------|----------------------------------------------|\n| Package        | pkg:npm/%40nestjs/common@10.4.22             |\n| Affected range | <11.0.16                                     |\n| Fixed version  | 11.0.16                                      |\n| CVSS Score     |                                          5.5 |\n| CVSS Vector    | CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:L/I:L/A:L |\n"
+              },
+              "properties": {
+                "affected_version": "<11.0.16",
+                "cvssV3": 5.5,
+                "cvssV3_severity": "MEDIUM",
+                "cvssV3_vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:L/I:L/A:L",
+                "fixed_version": "11.0.16",
+                "purls": [
+                  "pkg:npm/%40nestjs/common@10.4.22"
+                ],
+                "security-severity": "5.5",
+                "tags": [
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-23342",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-23342: Observable Discrepancy"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2024-23342?s=github&n=ecdsa&t=pypi&vr=%3E%3D0",
+              "help": {
+                "text": "python-ecdsa has been found to be subject to a Minerva timing attack on the P-256 curve. Using the `ecdsa.SigningKey.sign_digest()` API function and timing signatures an attacker can leak the internal nonce which may allow for private key discovery. Both ECDSA signatures, key generation, and ECDH operations are affected. ECDSA signature verification is unaffected. The python-ecdsa project considers side channel attacks out of scope for the project and there is no planned fix.\n",
+                "markdown": "> python-ecdsa has been found to be subject to a Minerva timing attack on the P-256 curve. Using the `ecdsa.SigningKey.sign_digest()` API function and timing signatures an attacker can leak the internal nonce which may allow for private key discovery. Both ECDSA signatures, key generation, and ECDH operations are affected. ECDSA signature verification is unaffected. The python-ecdsa project considers side channel attacks out of scope for the project and there is no planned fix.\n\n|                |                                              |\n|----------------|----------------------------------------------|\n| Package        | pkg:pypi/ecdsa@0.19.1                        |\n| Affected range | >=0                                          |\n| Fixed version  | not fixed                                    |\n| CVSS Score     |                                          7.4 |\n| CVSS Vector    | CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N |\n"
+              },
+              "properties": {
+                "affected_version": ">=0",
+                "cvssV3": 7.4,
+                "cvssV3_severity": "HIGH",
+                "cvssV3_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+                "fixed_version": "not fixed",
+                "purls": [
+                  "pkg:pypi/ecdsa@0.19.1"
+                ],
+                "security-severity": "7.4",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-30922",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-30922: Uncontrolled Recursion"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-30922?s=github&n=pyasn1&t=pypi&vr=%3C%3D0.6.2",
+              "help": {
+                "text": "### Summary\nThe `pyasn1` library is vulnerable to a Denial of Service (DoS) attack caused by uncontrolled recursion when decoding ASN.1 data with deeply nested structures. An attacker can supply a crafted payload containing nested `SEQUENCE` (`0x30`) or `SET` (`0x31`) tags with Indefinite Length (`0x80`) markers. This forces the decoder to recursively call itself until the Python interpreter crashes with a `RecursionError` or consumes all available memory (OOM), crashing the host application.\n\n### Details\nThe vulnerability exists because the decoder iterates through the input stream and recursively calls `decodeFun` (the decoding callback) for every nested component found, without tracking or limiting the recursion depth.\nVulnerable Code Locations:\n1. `indefLenValueDecoder` (Line 998):\n```for component in decodeFun(substrate, asn1Spec, allowEoo=True, **options):```\nThis method handles indefinite-length constructed types. It sits inside a `while True` loop and recursively calls the decoder for every nested tag.\n\n2. `valueDecoder` (Lines 786 and 907):\n```for component in decodeFun(substrate, componentType, **options):```\nThis method handles standard decoding when a schema is present. It contains two distinct recursive calls that lack depth checks: Line 786: Recursively decodes components of `SEQUENCE` or `SET` types. Line 907: Recursively decodes elements of `SEQUENCE OF` or `SET OF` types.\n\n4. `_decodeComponentsSchemaless` (Line 661):\n```for component in decodeFun(substrate, **options):```\nThis method handles decoding when no schema is provided.\n\nIn all three cases, `decodeFun` is invoked without passing a `depth` parameter or checking against a global `MAX_ASN1_NESTING` limit.\n\n### PoC\n```\nimport sys\nfrom pyasn1.codec.ber import decoder\n\nsys.setrecursionlimit(100000)\n\nprint(\"[*] Generating Recursion Bomb Payload...\")\ndepth = 50_000\nchunk = b'\\x30\\x80' \npayload = chunk * depth\n\nprint(f\"[*] Payload size: {len(payload) / 1024:.2f} KB\")\nprint(\"[*] Triggering Decoder...\")\n\ntry:\n    decoder.decode(payload)\nexcept RecursionError:\n    print(\"[!] Crashed: Recursion Limit Hit\")\nexcept MemoryError:\n    print(\"[!] Crashed: Out of Memory\")\nexcept Exception as e:\n    print(f\"[!] Crashed: {e}\")\n```\n\n```\n[*] Payload size: 9.77 KB\n[*] Triggering Decoder...\n[!] Crashed: Recursion Limit Hit\n```\n\n### Impact\n- This is an unhandled runtime exception that typically terminates the worker process or thread handling the request. This allows a remote attacker to trivially kill service workers with a small payload (<100KB), resulting in a Denial of Service. Furthermore, in environments where recursion limits are increased, this leads to server-wide memory exhaustion.\n- Service Crash: Any service using `pyasn1` to parse untrusted ASN.1 data (e.g., LDAP, SNMP, Kerberos, X.509 parsers) can be crashed remotely.\n- Resource Exhaustion: The attack consumes RAM linearly with the nesting depth. A small payload (<200KB) can consume hundreds of megabytes of RAM or exhaust the stack.\n\n### Credits\nVulnerability discovered by Kevin Tu of TMIR at ByteDance.\n",
+                "markdown": "> ### Summary\nThe `pyasn1` library is vulnerable to a Denial of Service (DoS) attack caused by uncontrolled recursion when decoding ASN.1 data with deeply nested structures. An attacker can supply a crafted payload containing nested `SEQUENCE` (`0x30`) or `SET` (`0x31`) tags with Indefinite Length (`0x80`) markers. This forces the decoder to recursively call itself until the Python interpreter crashes with a `RecursionError` or consumes all available memory (OOM), crashing the host application.\n\n### Details\nThe vulnerability exists because the decoder iterates through the input stream and recursively calls `decodeFun` (the decoding callback) for every nested component found, without tracking or limiting the recursion depth.\nVulnerable Code Locations:\n1. `indefLenValueDecoder` (Line 998):\n```for component in decodeFun(substrate, asn1Spec, allowEoo=True, **options):```\nThis method handles indefinite-length constructed types. It sits inside a `while True` loop and recursively calls the decoder for every nested tag.\n\n2. `valueDecoder` (Lines 786 and 907):\n```for component in decodeFun(substrate, componentType, **options):```\nThis method handles standard decoding when a schema is present. It contains two distinct recursive calls that lack depth checks: Line 786: Recursively decodes components of `SEQUENCE` or `SET` types. Line 907: Recursively decodes elements of `SEQUENCE OF` or `SET OF` types.\n\n4. `_decodeComponentsSchemaless` (Line 661):\n```for component in decodeFun(substrate, **options):```\nThis method handles decoding when no schema is provided.\n\nIn all three cases, `decodeFun` is invoked without passing a `depth` parameter or checking against a global `MAX_ASN1_NESTING` limit.\n\n### PoC\n```\nimport sys\nfrom pyasn1.codec.ber import decoder\n\nsys.setrecursionlimit(100000)\n\nprint(\"[*] Generating Recursion Bomb Payload...\")\ndepth = 50_000\nchunk = b'\\x30\\x80' \npayload = chunk * depth\n\nprint(f\"[*] Payload size: {len(payload) / 1024:.2f} KB\")\nprint(\"[*] Triggering Decoder...\")\n\ntry:\n    decoder.decode(payload)\nexcept RecursionError:\n    print(\"[!] Crashed: Recursion Limit Hit\")\nexcept MemoryError:\n    print(\"[!] Crashed: Out of Memory\")\nexcept Exception as e:\n    print(f\"[!] Crashed: {e}\")\n```\n\n```\n[*] Payload size: 9.77 KB\n[*] Triggering Decoder...\n[!] Crashed: Recursion Limit Hit\n```\n\n### Impact\n- This is an unhandled runtime exception that typically terminates the worker process or thread handling the request. This allows a remote attacker to trivially kill service workers with a small payload (<100KB), resulting in a Denial of Service. Furthermore, in environments where recursion limits are increased, this leads to server-wide memory exhaustion.\n- Service Crash: Any service using `pyasn1` to parse untrusted ASN.1 data (e.g., LDAP, SNMP, Kerberos, X.509 parsers) can be crashed remotely.\n- Resource Exhaustion: The attack consumes RAM linearly with the nesting depth. A small payload (<200KB) can consume hundreds of megabytes of RAM or exhaust the stack.\n\n### Credits\nVulnerability discovered by Kevin Tu of TMIR at ByteDance.\n\n|                |                                              |\n|----------------|----------------------------------------------|\n| Package        | pkg:pypi/pyasn1@0.6.2                        |\n| Affected range | <=0.6.2                                      |\n| Fixed version  | 0.6.3                                        |\n| CVSS Score     |                                          7.5 |\n| CVSS Vector    | CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H |\n"
+              },
+              "properties": {
+                "affected_version": "<=0.6.2",
+                "cvssV3": 7.5,
+                "cvssV3_severity": "HIGH",
+                "cvssV3_vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "fixed_version": "0.6.3",
+                "purls": [
+                  "pkg:pypi/pyasn1@0.6.2"
+                ],
+                "security-severity": "7.5",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-32597",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-32597: Insufficient Verification of Data Authenticity"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-32597?s=github&n=pyjwt&t=pypi&vr=%3C%3D2.11.0",
+              "help": {
+                "text": "## Summary\n\nPyJWT does not validate the `crit` (Critical) Header Parameter defined in\nRFC 7515 §4.1.11. When a JWS token contains a `crit` array listing\nextensions that PyJWT does not understand, the library accepts the token\ninstead of rejecting it. This violates the **MUST** requirement in the RFC.\n\nThis is the same class of vulnerability as CVE-2025-59420 (Authlib),\nwhich received CVSS 7.5 (HIGH).\n\n---\n\n## RFC Requirement\n\nRFC 7515 §4.1.11:\n\n> The \"crit\" (Critical) Header Parameter indicates that extensions to this\n> specification and/or [JWA] are being used that **MUST** be understood and\n> processed. [...] If any of the listed extension Header Parameters are\n> **not understood and supported** by the recipient, then the **JWS is invalid**.\n\n---\n\n## Proof of Concept\n\n```python\nimport jwt  # PyJWT 2.8.0\nimport hmac, hashlib, base64, json\n\n# Construct token with unknown critical extension\nheader = {\"alg\": \"HS256\", \"crit\": [\"x-custom-policy\"], \"x-custom-policy\": \"require-mfa\"}\npayload = {\"sub\": \"attacker\", \"role\": \"admin\"}\n\ndef b64url(data):\n    return base64.urlsafe_b64encode(data).rstrip(b\"=\").decode()\n\nh = b64url(json.dumps(header, separators=(\",\", \":\")).encode())\np = b64url(json.dumps(payload, separators=(\",\", \":\")).encode())\nsig = b64url(hmac.new(b\"secret\", f\"{h}.{p}\".encode(), hashlib.sha256).digest())\ntoken = f\"{h}.{p}.{sig}\"\n\n# Should REJECT — x-custom-policy is not understood by PyJWT\ntry:\n    result = jwt.decode(token, \"secret\", algorithms=[\"HS256\"])\n    print(f\"ACCEPTED: {result}\")\n    # Output: ACCEPTED: {'sub': 'attacker', 'role': 'admin'}\nexcept Exception as e:\n    print(f\"REJECTED: {e}\")\n```\n\n**Expected:** `jwt.exceptions.InvalidTokenError: Unsupported critical extension: x-custom-policy`\n**Actual:** Token accepted, payload returned.\n\n### Comparison with RFC-compliant library\n\n```python\n# jwcrypto — correctly rejects\nfrom jwcrypto import jwt as jw_jwt, jwk\nkey = jwk.JWK(kty=\"oct\", k=b64url(b\"secret\"))\njw_jwt.JWT(jwt=token, key=key, algs=[\"HS256\"])\n# raises: InvalidJWSObject('Unknown critical header: \"x-custom-policy\"')\n```\n\n---\n\n## Impact\n\n- **Split-brain verification** in mixed-library deployments (e.g., API\n  gateway using jwcrypto rejects, backend using PyJWT accepts)\n- **Security policy bypass** when `crit` carries enforcement semantics\n  (MFA, token binding, scope restrictions)\n- **Token binding bypass** — RFC 7800 `cnf` (Proof-of-Possession) can be\n  silently ignored\n- See CVE-2025-59420 for full impact analysis\n\n---\n\n## Suggested Fix\n\nIn `jwt/api_jwt.py`, add validation in `_validate_headers()` or\n`decode()`:\n\n```python\n_SUPPORTED_CRIT = {\"b64\"}  # Add extensions PyJWT actually supports\n\ndef _validate_crit(self, headers: dict) -> None:\n    crit = headers.get(\"crit\")\n    if crit is None:\n        return\n    if not isinstance(crit, list) or len(crit) == 0:\n        raise InvalidTokenError(\"crit must be a non-empty array\")\n    for ext in crit:\n        if ext not in self._SUPPORTED_CRIT:\n            raise InvalidTokenError(f\"Unsupported critical extension: {ext}\")\n        if ext not in headers:\n            raise InvalidTokenError(f\"Critical extension {ext} not in header\")\n```\n\n---\n\n## CWE\n\n- CWE-345: Insufficient Verification of Data Authenticity\n- CWE-863: Incorrect Authorization\n\n## References\n\n- [RFC 7515 §4.1.11](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.11)\n- [CVE-2025-59420 — Authlib crit bypass (CVSS 7.5)](https://osv.dev/vulnerability/GHSA-9ggr-2464-2j32)\n- [RFC 7800 — Proof-of-Possession Key Semantics](https://www.rfc-editor.org/rfc/rfc7800)\n",
+                "markdown": "> ## Summary\n\nPyJWT does not validate the `crit` (Critical) Header Parameter defined in\nRFC 7515 §4.1.11. When a JWS token contains a `crit` array listing\nextensions that PyJWT does not understand, the library accepts the token\ninstead of rejecting it. This violates the **MUST** requirement in the RFC.\n\nThis is the same class of vulnerability as CVE-2025-59420 (Authlib),\nwhich received CVSS 7.5 (HIGH).\n\n---\n\n## RFC Requirement\n\nRFC 7515 §4.1.11:\n\n> The \"crit\" (Critical) Header Parameter indicates that extensions to this\n> specification and/or [JWA] are being used that **MUST** be understood and\n> processed. [...] If any of the listed extension Header Parameters are\n> **not understood and supported** by the recipient, then the **JWS is invalid**.\n\n---\n\n## Proof of Concept\n\n```python\nimport jwt  # PyJWT 2.8.0\nimport hmac, hashlib, base64, json\n\n# Construct token with unknown critical extension\nheader = {\"alg\": \"HS256\", \"crit\": [\"x-custom-policy\"], \"x-custom-policy\": \"require-mfa\"}\npayload = {\"sub\": \"attacker\", \"role\": \"admin\"}\n\ndef b64url(data):\n    return base64.urlsafe_b64encode(data).rstrip(b\"=\").decode()\n\nh = b64url(json.dumps(header, separators=(\",\", \":\")).encode())\np = b64url(json.dumps(payload, separators=(\",\", \":\")).encode())\nsig = b64url(hmac.new(b\"secret\", f\"{h}.{p}\".encode(), hashlib.sha256).digest())\ntoken = f\"{h}.{p}.{sig}\"\n\n# Should REJECT — x-custom-policy is not understood by PyJWT\ntry:\n    result = jwt.decode(token, \"secret\", algorithms=[\"HS256\"])\n    print(f\"ACCEPTED: {result}\")\n    # Output: ACCEPTED: {'sub': 'attacker', 'role': 'admin'}\nexcept Exception as e:\n    print(f\"REJECTED: {e}\")\n```\n\n**Expected:** `jwt.exceptions.InvalidTokenError: Unsupported critical extension: x-custom-policy`\n**Actual:** Token accepted, payload returned.\n\n### Comparison with RFC-compliant library\n\n```python\n# jwcrypto — correctly rejects\nfrom jwcrypto import jwt as jw_jwt, jwk\nkey = jwk.JWK(kty=\"oct\", k=b64url(b\"secret\"))\njw_jwt.JWT(jwt=token, key=key, algs=[\"HS256\"])\n# raises: InvalidJWSObject('Unknown critical header: \"x-custom-policy\"')\n```\n\n---\n\n## Impact\n\n- **Split-brain verification** in mixed-library deployments (e.g., API\n  gateway using jwcrypto rejects, backend using PyJWT accepts)\n- **Security policy bypass** when `crit` carries enforcement semantics\n  (MFA, token binding, scope restrictions)\n- **Token binding bypass** — RFC 7800 `cnf` (Proof-of-Possession) can be\n  silently ignored\n- See CVE-2025-59420 for full impact analysis\n\n---\n\n## Suggested Fix\n\nIn `jwt/api_jwt.py`, add validation in `_validate_headers()` or\n`decode()`:\n\n```python\n_SUPPORTED_CRIT = {\"b64\"}  # Add extensions PyJWT actually supports\n\ndef _validate_crit(self, headers: dict) -> None:\n    crit = headers.get(\"crit\")\n    if crit is None:\n        return\n    if not isinstance(crit, list) or len(crit) == 0:\n        raise InvalidTokenError(\"crit must be a non-empty array\")\n    for ext in crit:\n        if ext not in self._SUPPORTED_CRIT:\n            raise InvalidTokenError(f\"Unsupported critical extension: {ext}\")\n        if ext not in headers:\n            raise InvalidTokenError(f\"Critical extension {ext} not in header\")\n```\n\n---\n\n## CWE\n\n- CWE-345: Insufficient Verification of Data Authenticity\n- CWE-863: Incorrect Authorization\n\n## References\n\n- [RFC 7515 §4.1.11](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.11)\n- [CVE-2025-59420 — Authlib crit bypass (CVSS 7.5)](https://osv.dev/vulnerability/GHSA-9ggr-2464-2j32)\n- [RFC 7800 — Proof-of-Possession Key Semantics](https://www.rfc-editor.org/rfc/rfc7800)\n\n|                |                                              |\n|----------------|----------------------------------------------|\n| Package        | pkg:pypi/pyjwt@2.11.0                        |\n| Affected range | <=2.11.0                                     |\n| Fixed version  | 2.12.0                                       |\n| CVSS Score     |                                          7.5 |\n| CVSS Vector    | CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N |\n"
+              },
+              "properties": {
+                "affected_version": "<=2.11.0",
+                "cvssV3": 7.5,
+                "cvssV3_severity": "HIGH",
+                "cvssV3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+                "fixed_version": "2.12.0",
+                "purls": [
+                  "pkg:pypi/pyjwt@2.11.0"
+                ],
+                "security-severity": "7.5",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-26007",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-26007: Insufficient Verification of Data Authenticity"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-26007?s=github&n=cryptography&t=pypi&vr=%3C%3D46.0.4",
+              "help": {
+                "text": "## Vulnerability Summary\n\nThe `public_key_from_numbers` (or `EllipticCurvePublicNumbers.public_key()`), `EllipticCurvePublicNumbers.public_key()`, `load_der_public_key()` and `load_pem_public_key()` functions do not verify that the point belongs to the expected prime-order subgroup of the curve.\n\nThis missing validation allows an attacker to provide a public key point `P` from a small-order subgroup.  This can lead to security issues in various situations, such as the most commonly used signature verification (ECDSA) and shared key negotiation (ECDH). When the victim computes the shared secret as `S = [victim_private_key]P` via ECDH,  this leaks information about `victim_private_key mod (small_subgroup_order)`. For curves with cofactor > 1, this reveals the least significant bits of the private key.  When these weak public keys are used in ECDSA , it's easy to forge signatures on the small subgroup.\n\nOnly SECT curves are impacted by this.\n\n## Credit\n\nThis vulnerability was discovered by:\n- XlabAI Team of Tencent Xuanwu Lab\n- Atuin Automated Vulnerability Discovery Engine\n",
+                "markdown": "> ## Vulnerability Summary\n\nThe `public_key_from_numbers` (or `EllipticCurvePublicNumbers.public_key()`), `EllipticCurvePublicNumbers.public_key()`, `load_der_public_key()` and `load_pem_public_key()` functions do not verify that the point belongs to the expected prime-order subgroup of the curve.\n\nThis missing validation allows an attacker to provide a public key point `P` from a small-order subgroup.  This can lead to security issues in various situations, such as the most commonly used signature verification (ECDSA) and shared key negotiation (ECDH). When the victim computes the shared secret as `S = [victim_private_key]P` via ECDH,  this leaks information about `victim_private_key mod (small_subgroup_order)`. For curves with cofactor > 1, this reveals the least significant bits of the private key.  When these weak public keys are used in ECDSA , it's easy to forge signatures on the small subgroup.\n\nOnly SECT curves are impacted by this.\n\n## Credit\n\nThis vulnerability was discovered by:\n- XlabAI Team of Tencent Xuanwu Lab\n- Atuin Automated Vulnerability Discovery Engine\n\n|                |                                                                                                                                                                                |\n|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|\n| Package        | pkg:pypi/cryptography@46.0.3                                                                                                                                                   |\n| Affected range | <=46.0.4                                                                                                                                                                       |\n| Fixed version  | 46.0.5                                                                                                                                                                         |\n| CVSS Score     |                                                                                                                                                                            8.2 |\n| CVSS Vector    | CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X |\n"
+              },
+              "properties": {
+                "affected_version": "<=46.0.4",
+                "cvssV3": 8.2,
+                "cvssV3_severity": "HIGH",
+                "cvssV3_vector": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X",
+                "fixed_version": "46.0.5",
+                "purls": [
+                  "pkg:pypi/cryptography@46.0.3"
+                ],
+                "security-severity": "8.2",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            }
+          ],
+          "version": "1.18.3"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "RUSTSEC-2017-0008",
+          "ruleIndex": 0,
+          "kind": "fail",
+          "level": "none",
+          "message": {
+            "text": "  Vulnerability  : RUSTSEC-2017-0008       \n  Severity       : UNSPECIFIED             \n  Package        : pkg:cargo/serial@0.4.0  \n  Affected range : >=0.0.0-0               \n  Fixed version  : not fixed               \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\packages\\runtime\\terminal\\Cargo.lock"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-1703",
+          "ruleIndex": 1,
+          "kind": "fail",
+          "level": "note",
+          "message": {
+            "text": "  Vulnerability   : CVE-2026-1703                                                    \n  Severity        : LOW                                                              \n  Package         : pkg:pypi/pip@25.3                                                \n  Affected range  : <26.0                                                            \n  Fixed version   : 26.0                                                             \n  CVSS Score      : 2.0                                                              \n  CVSS Vector     : CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:A/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N  \n  EPSS Score      : 0.000220                                                         \n  EPSS Percentile : 0.056240                                                         \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\.venv\\Lib\\site-packages\\pip-25.3.dist-info\\METADATA"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\apps\\backend\\.venv\\Lib\\site-packages\\pip-25.3.dist-info\\METADATA"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-29409",
+          "ruleIndex": 2,
+          "kind": "fail",
+          "level": "warning",
+          "message": {
+            "text": "  Vulnerability   : CVE-2024-29409                                \n  Severity        : MEDIUM                                        \n  Package         : pkg:npm/%40nestjs/common@10.4.22              \n  Affected range  : <11.0.16                                      \n  Fixed version   : 11.0.16                                       \n  CVSS Score      : 5.5                                           \n  CVSS Vector     : CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:L/I:L/A:L  \n  EPSS Score      : 0.001630                                      \n  EPSS Percentile : 0.370430                                      \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\apps\\backend-node\\package-lock.json"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-23342",
+          "ruleIndex": 3,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "  Vulnerability   : CVE-2024-23342                                \n  Severity        : HIGH                                          \n  Package         : pkg:pypi/ecdsa@0.19.1                         \n  Affected range  : >=0                                           \n  Fixed version   : not fixed                                     \n  CVSS Score      : 7.4                                           \n  CVSS Vector     : CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N  \n  EPSS Score      : 0.006220                                      \n  EPSS Percentile : 0.698420                                      \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\.venv\\Lib\\site-packages\\ecdsa-0.19.1.dist-info\\METADATA"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\apps\\backend\\.venv\\Lib\\site-packages\\ecdsa-0.19.1.dist-info\\METADATA"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-30922",
+          "ruleIndex": 4,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "  Vulnerability   : CVE-2026-30922                                \n  Severity        : HIGH                                          \n  Package         : pkg:pypi/pyasn1@0.6.2                         \n  Affected range  : <=0.6.2                                       \n  Fixed version   : 0.6.3                                         \n  CVSS Score      : 7.5                                           \n  CVSS Vector     : CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H  \n  EPSS Score      : 0.000400                                      \n  EPSS Percentile : 0.118480                                      \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\.venv\\Lib\\site-packages\\pyasn1-0.6.2.dist-info\\METADATA"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-32597",
+          "ruleIndex": 5,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "  Vulnerability   : CVE-2026-32597                                \n  Severity        : HIGH                                          \n  Package         : pkg:pypi/pyjwt@2.11.0                         \n  Affected range  : <=2.11.0                                      \n  Fixed version   : 2.12.0                                        \n  CVSS Score      : 7.5                                           \n  CVSS Vector     : CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N  \n  EPSS Score      : 0.000200                                      \n  EPSS Percentile : 0.050100                                      \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\.venv\\Lib\\site-packages\\pyjwt-2.11.0.dist-info\\METADATA"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-26007",
+          "ruleIndex": 6,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "  Vulnerability   : CVE-2026-26007                                                                                                                                                                  \n  Severity        : HIGH                                                                                                                                                                            \n  Package         : pkg:pypi/cryptography@46.0.3                                                                                                                                                    \n  Affected range  : <=46.0.4                                                                                                                                                                        \n  Fixed version   : 46.0.5                                                                                                                                                                          \n  CVSS Score      : 8.2                                                                                                                                                                             \n  CVSS Vector     : CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X  \n  EPSS Score      : 0.000070                                                                                                                                                                        \n  EPSS Percentile : 0.005770                                                                                                                                                                        \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "\\.venv\\Lib\\site-packages\\cryptography-46.0.3.dist-info\\METADATA"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
