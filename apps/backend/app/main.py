@@ -15,7 +15,10 @@ from app.models.project import Project
 from app.models.file import File
 
 # Create all tables on startup
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as exc:
+    print(f"[warn] Database schema bootstrap failed during startup: {exc}")
 
 app = FastAPI(title="Deexen Backend API", version="1.0.0")
 

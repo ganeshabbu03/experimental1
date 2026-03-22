@@ -32,13 +32,13 @@ def _engine_for(url: str):
 
 
 primary_url = os.getenv('DATABASE_URL', 'sqlite:///./deexen_demo.db')
-fallback_url = os.getenv('DATABASE_FALLBACK_URL')
+fallback_url = (os.getenv('DATABASE_FALLBACK_URL') or '').strip() or None
 
 engine = _engine_for(primary_url)
 DATABASE_URL = primary_url
 
 # Wait for primary DB to be ready, otherwise fallback to auxiliary DB only if explicitly configured.
-retries = 5
+retries = int(os.getenv('DB_CONNECT_RETRIES', '5'))
 while retries > 0:
     try:
         with engine.connect() as conn:
@@ -49,11 +49,25 @@ while retries > 0:
         print(f"Database connection failed, retrying in 3 seconds... ({retries} attempts left)")
         if retries == 0:
             if fallback_url and fallback_url != primary_url:
-                print("Falling back to auxiliary database...")
-                engine = _engine_for(fallback_url)
-                DATABASE_URL = fallback_url
+                print("Primary database unavailable, trying auxiliary database...")
+                try:
+                    fallback_engine = _engine_for(fallback_url)
+                    with fallback_engine.connect() as conn:
+                        conn.exec_driver_sql('SELECT 1')
+                    engine = fallback_engine
+                    DATABASE_URL = fallback_url
+                    print("Using auxiliary database connection.")
+                except SQLAlchemyError as fallback_err:
+                    print(
+                        "Auxiliary database probe failed; continuing startup without DB validation. "
+                        f"primary_error={err} fallback_error={fallback_err}"
+                    )
             else:
-                raise
+                print(
+                    "No auxiliary database configured; continuing startup without DB validation. "
+                    f"last_error={err}"
+                )
+            break
         time.sleep(3)
 
 SessionLocal = sessionmaker(bind=engine)
