@@ -1,0 +1,388 @@
+// AI Analysis Service
+// Handles all AI-powered code analysis features
+
+import { apiClient } from './apiClient';
+import type { AIMode } from '@/config/aiModes';
+
+interface AnalyzeResponse {
+    response: string;
+    mode: AIMode;
+    model: string;
+    tokens?: number;
+    processingTime?: number;
+}
+
+export interface Message {
+    id: number;
+    conversation_id: number;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    code_analyzed?: string;
+    created_at: string;
+}
+
+export interface Conversation {
+    id: number;
+    user_id: number;
+    title: string;
+    created_at: string;
+    updated_at: string;
+    messages?: Message[]; // Messages might be loaded separately
+}
+
+
+
+class AIService {
+    // ==========================================
+    // REAL API ENDPOINTS
+    // ==========================================
+
+    async analyze(mode: AIMode, model: string, code: string, context?: string, language?: string, skillLevel: 'beginner' | 'intermediate' | 'expert' = 'intermediate'): Promise<string> {
+        if (apiClient.isMockMode()) {
+            return this.mockAnalyze(mode, model, code, skillLevel);
+        }
+
+        const response = await apiClient.post<AnalyzeResponse>('/ai/analyze', {
+            code,
+            mode,
+            model,
+            context: context || 'Deexen IDE',
+            language: language || 'javascript',
+            skill_level: skillLevel
+        });
+
+        return response.response;
+    }
+
+    // Mode-specific endpoints
+    async debug(code: string, model: string = 'gemini'): Promise<string> {
+        return this.analyze('debug', model, code);
+    }
+
+    async enhance(code: string, model: string = 'gemini'): Promise<string> {
+        return this.analyze('enhance', model, code);
+    }
+
+    async expand(code: string, model: string = 'gemini'): Promise<string> {
+        return this.analyze('expand', model, code);
+    }
+
+    async teach(code: string, model: string = 'gemini'): Promise<string> {
+        return this.analyze('teaching', model, code);
+    }
+
+    async livefix(code: string, model: string = 'gemini'): Promise<string> {
+        return this.analyze('livefix', model, code);
+    }
+
+
+
+    // ==========================================
+    // CONVERSATION API
+    // ==========================================
+
+    async getConversations(): Promise<Conversation[]> {
+        if (apiClient.isMockMode()) return [];
+        return apiClient.get<Conversation[]>('/conversations/');
+    }
+
+    async getConversation(id: number): Promise<Conversation> {
+        if (apiClient.isMockMode()) throw new Error("Mock conversation not implemented");
+        return apiClient.get<Conversation>(`/conversations/${id}`);
+    }
+
+    async createConversation(title?: string): Promise<Conversation> {
+        if (apiClient.isMockMode()) {
+            return { id: Date.now(), user_id: 1, title: title || "New Chat", created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        }
+        return apiClient.post<Conversation>('/conversations/', { title });
+    }
+
+    async updateConversation(id: number, title: string): Promise<Conversation> {
+        if (apiClient.isMockMode()) return { id, user_id: 1, title, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+        return apiClient.put<Conversation>(`/conversations/${id}`, { title });
+    }
+
+    async deleteConversation(id: number): Promise<void> {
+        if (apiClient.isMockMode()) return;
+        return apiClient.delete<void>(`/conversations/${id}`);
+    }
+
+    async addMessage(conversationId: number, role: string, content: string, code_analyzed?: string): Promise<Message> {
+        if (apiClient.isMockMode()) {
+            return { id: Date.now(), conversation_id: conversationId, role: role as any, content, code_analyzed, created_at: new Date().toISOString() };
+        }
+        return apiClient.post<Message>(`/conversations/${conversationId}/messages`, { role, content, code_analyzed });
+    }
+
+    async mockAnalyze(mode: AIMode, model: string, code: string, skillLevel: string = 'intermediate'): Promise<string> {
+        await this.simulateDelay(1500);
+        console.log(`Mock analyzing with ${model} in ${mode} mode (Skill: ${skillLevel})`);
+        console.log(`Code size: ${code.length}`);
+
+        // Adaptive Prefix based on Skill Level
+        const getPrefix = () => {
+            if (skillLevel === 'beginner') return "**[Tutor Mode]** Hi there! Let's break this down simply.\n\n";
+            if (skillLevel === 'expert') return "**[Expert Mode]** Analysis result:\n\n";
+            return "";
+        };
+
+        // Tailored responses for Magicoder
+        if (model.includes('magicoder') || model.includes('wizard') || model.includes('33b') || model.includes('7b')) {
+            const magicoderResponses: Record<AIMode, string> = {
+                debug: `${getPrefix()}**[Magicoder Analysis] Bug Report**
+
+I've detected 2 critical issues in your code segment:
+
+**1. Potential Null Reference (Line 5)**
+\`\`\`typescript
+// Current:
+console.log(data.name);
+
+// Fix:
+if (data?.name) {
+    console.log(data.name);
+}
+\`\`\`
+*Reasoning: \`data\` object might be undefined during initial render.*
+
+**2. Unhandled Promise Rejection (Line 12)**
+Missing \`catch\` block in async operation.
+
+**Suggested Fix:**
+\`\`\`typescript
+try {
+    await processData();
+} catch (error) {
+    console.error('Processing failed:', error);
+}
+\`\`\``,
+
+                enhance: `**[Magicoder] Code Enhancement Plan**
+
+Your code logic is sound, but we can improve performance and readability:
+
+**1. Optimization: Use Async/Await**
+Refactor the promise chain to clean async/await syntax.
+
+**2. Refactoring: Extract Helper Function**
+The validation logic on lines 15-25 is repetitive. Let's move it to a util:
+\`\`\`typescript
+const validateInput = (input: string): boolean => {
+    return input.length > 3 && /^[a-z]+$/i.test(input);
+};
+\`\`\`
+
+**3. Type Safety**
+Replace \`any\` with a specific interface \`UserData\` to prevent runtime type errors.`,
+
+                expand: `**[Magicoder] Feature Expansion Blueprint**
+
+Based on your current code, here is a scalable expansion plan:
+
+**1. Add Caching Layer**
+Implement a simple LRU cache to reduce API calls:
+\`\`\`typescript
+const cache = new Map<string, CachedResponse>();
+// Check cache before making network request
+\`\`\`
+
+**2. Implement Retry Logic**
+Network requests should have resilience:
+\`\`\`typescript
+async function fetchWithRetry(url: string, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fetch(url);
+        } catch (err) {
+            if (i === retries - 1) throw err;
+            await sleep(1000 * Math.pow(2, i));
+        }
+    }
+}
+\`\`\`
+
+**3. Add User Analytics Module**
+Track usage patterns to optimize feature rollout.`,
+
+                teaching: `**[Magicoder] Interactive Learning Session**
+
+Let's break down this code together. I won't give you the answer yet!
+
+**Concept: Asynchronous Data Handling**
+
+**Question 1:**
+Look at line 8. What happens to the execution flow when \`fetch\` is called without \`await\`?
+*Hint: Does the code wait for the data?*
+
+**Question 2:**
+You are modifying \`state\` directly on line 15. In React, what is the correct way to update state to trigger a re-render?
+
+**Challenge:**
+Try guarding the usage of \`props.items.map\` on line 20. What if \`items\` is null?
+Write a guard clause and check back with me!`,
+
+                livefix: `**[Magicoder] Live Sentinel Active**
+*Monitoring your keystrokes...*
+
+**Status Update:**
+- **Syntax:** ✅ Valid
+- **Types:** ⚠️ 1 Warning
+- **Style:** ✅ Consistent
+
+**Real-time Suggestion:**
+You just defined \`const value\`, but it seems you intend to reassign it later.
+-> **Auto-Correction:** Change \`const\` to \`let\`.
+
+**Code Snippet:**
+\`\`\`typescript
+let value = 0; // Changed from const
+if (condition) {
+    value = 10;
+}
+\`\`\`
+
+*Standing by for further input...*`
+            };
+            return magicoderResponses[mode];
+        }
+
+        const mockResponses: Record<AIMode, string> = {
+            debug: `**Bug Analysis Complete**
+
+Found 2 potential issues in your code:
+
+**Issue 1: Null Reference (Line 5)**
+\`\`\`
+Potential null reference: 'data' might be undefined
+\`\`\`
+
+**Why this happens:** The variable is accessed before checking if it exists.
+
+**Fix:**
+\`\`\`typescript
+if (data && data.name) {
+  console.log(data.name);
+}
+\`\`\`
+
+**Alternative Solution:**
+\`\`\`typescript
+console.log(data?.name ?? 'default');
+\`\`\`
+
+**Issue 2: Missing Error Handling (Line 12)**
+Async function lacks try-catch block.`,
+
+            enhance: `**Code Enhancement Suggestions**
+
+Here's how to improve your code quality:
+
+**1. Refactoring Opportunity**
+\`\`\`typescript
+// Before - repetitive code
+function getData() {
+  return fetch(url).then(r => r.json());
+}
+
+// After - cleaner async/await
+async function getData(): Promise<Data> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed');
+  return response.json();
+}
+\`\`\`
+
+**2. Structure Improvement**
+- Extract magic numbers into constants
+- Add TypeScript types for better safety
+
+**3. Performance Optimization**
+- Consider memoization for expensive calculations
+- Use lazy loading for large modules`,
+
+            expand: `**Feature Expansion Ideas**
+
+Here's how to scale your code:
+
+**1. Add Caching Layer**
+\`\`\`typescript
+const cache = new Map<string, Data>();
+
+async function getCachedData(key: string) {
+  if (cache.has(key)) return cache.get(key);
+  const data = await fetchData(key);
+  cache.set(key, data);
+  return data;
+}
+\`\`\`
+
+**2. Add Retry Logic with Exponential Backoff**
+
+**3. Add Rate Limiting**
+
+**4. Add Comprehensive Logging**
+
+**New Module Suggestions:**
+- Add a notification service
+- Implement user preferences storage
+- Create an analytics tracker`,
+
+            teaching: `**Let's Learn Together**
+
+Instead of giving you the answer directly, let me guide you:
+
+**Step 1: Identify the Problem**
+Look at line 5 - what happens if the variable is undefined?
+
+**Hint:** Think about what \`undefined.property\` returns in JavaScript.
+
+**Step 2: Consider Your Options**
+- What operators can check for null/undefined?
+- Have you heard of optional chaining (\`?.\`)?
+
+**Step 3: Try It Yourself**
+Write a condition that checks if the data exists before accessing it.
+
+**Reflection Questions:**
+1. Why is defensive coding important?
+2. What other places in your code might have this issue?
+
+**When you're ready,** share your solution and I'll provide feedback!`,
+
+            livefix: `**Live Monitoring Active**
+
+I'm watching your code in real-time. Here's what I noticed:
+
+**Auto-Fixed Issues:**
+
+✅ Added missing semicolons (3 instances)
+✅ Fixed indentation inconsistencies
+✅ Corrected variable naming to camelCase
+
+**Live Suggestion:**
+\`\`\`typescript
+// Your fixed code:
+const result = await fetchData();
+if (result.success) {
+  handleSuccess(result.data);
+}
+\`\`\`
+
+**Active Monitoring:**
+- Syntax errors: 0
+- Type issues: 0
+- Best practices: 2 suggestions pending
+
+Keep coding - I'll notify you of any issues!`,
+        };
+
+        return mockResponses[mode];
+    }
+
+    private simulateDelay(ms: number = 1000): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+export const aiService = new AIService();

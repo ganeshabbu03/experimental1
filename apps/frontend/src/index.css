@@ -1,0 +1,286 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'SF Pro Display';
+  src: url('/fonts/SFPRODISPLAYREGULAR.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "SF Pro Display", -apple-system, BlinkMacSystemFont, "San Francisco", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, "San Francisco", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-serif: "SF Pro Display", -apple-system, BlinkMacSystemFont, "San Francisco", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+:root {
+  /* Deexen Brand Colors - Light Theme */
+  /* Deexen Brand Colors - Light Theme */
+  --color-primary: #ea580c;
+  /* Orange-600 */
+  --color-primary-hover: #c2410c;
+  /* Orange-700 */
+  --color-accent: #7c3aed;
+  /* Violet-600 */
+  --color-accent-hover: #6d28d9;
+  /* Violet-700 */
+
+  /* Light Theme Palette */
+  --bg-canvas: #f9fafb;
+  /* Gray-50 */
+  --bg-surface: #ffffff;
+  /* White for cards/panels */
+  --bg-surface-hover: #f3f4f6;
+  /* Gray-100 */
+  --border-default: #e5e7eb;
+  /* Gray-200 */
+  --border-muted: #f3f4f6;
+  /* Gray-100 */
+
+  --text-primary: #111827;
+  /* Gray-900 */
+  --text-secondary: #6b7280;
+  /* Gray-500 */
+  --text-tertiary: #9ca3af;
+  /* Gray-400 */
+  --text-link: #3b82f6;
+
+  /* Activity Bar */
+  --bg-activity-bar: #ffffff;
+  --code-bg: #ffffff;
+
+  /* Additional light mode colors */
+  --bg-main: #f9fafb;
+  --bg-sidebar: #ffffff;
+  --border-sidebar: #e5e7eb;
+}
+
+
+
+
+
+.dark {
+  /* Premium Dark Theme - Deep Charcoal / Midnight Base */
+  --bg-canvas: #070709;
+  /* Very deep charcoal background */
+  --bg-surface: #0e0e12;
+  /* Slightly elevated panels */
+  --bg-surface-hover: #16161b;
+  /* Hover state */
+  --border-default: rgba(255, 255, 255, 0.06);
+  /* Subtle glass border */
+  --border-muted: rgba(255, 255, 255, 0.03);
+  /* Extremely subtle border */
+
+  --text-primary: #ededed;
+  /* Sharp, clear white */
+  --text-secondary: #888888;
+  /* Subdued gray */
+  --text-tertiary: #555555;
+  /* Dimmed */
+
+  --bg-activity-bar: #070709;
+  --code-bg: #030304;
+
+  /* Additional dark mode colors */
+  --bg-main: #070709;
+  --bg-sidebar: #0e0e12;
+  --border-sidebar: rgba(255, 255, 255, 0.04);
+}
+
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "San Francisco", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar - Light Mode */
+:root ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+:root ::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+:root ::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  /* Gray-300 */
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+}
+
+:root ::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+  /* Gray-400 */
+}
+
+/* Custom Scrollbar - Dark Mode */
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #27272a;
+  /* Zinc-800 */
+  border-radius: 9999px;
+  border: 2px solid #09090b;
+  /* Zinc-950 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #3f3f46;
+  /* Zinc-700 */
+}
+
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-panel {
+  background: rgba(14, 14, 18, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Premium Code Workspace Layers */
+.workspace-glow {
+  position: relative;
+}
+
+.workspace-glow::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 400px;
+  background: radial-gradient(circle at top, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Floating Tabs in Editor */
+.editor-tab {
+  background: transparent;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.editor-tab.active {
+  background: rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid transparent;
+  box-shadow: 0px -4px 12px rgba(255, 255, 255, 0.02), inset 0px 1px 4px rgba(255, 255, 255, 0.02);
+}
+
+/* Luxury Terminal */
+.terminal-glow {
+  box-shadow: inset 0px 1px 0px rgba(255, 255, 255, 0.08), 0 -10px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* Premium Gradients */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #f97316 100%);
+}
+
+.bg-gradient-brand {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+}
+
+/* Driver.js Custom Theme */
+.driver-popover.deexen-tour-popover {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "San Francisco", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  max-width: 300px;
+}
+
+.driver-popover.deexen-tour-popover .driver-popover-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.driver-popover.deexen-tour-popover .driver-popover-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.driver-popover.deexen-tour-popover button.driver-popover-btn {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  text-shadow: none;
+}
+
+.driver-popover.deexen-tour-popover button.driver-popover-btn:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.driver-popover.deexen-tour-popover button.driver-popover-next-btn {
+  background-color: var(--color-primary);
+  color: white;
+  /* Always white on primary */
+  border: none;
+}
+
+.driver-popover.deexen-tour-popover button.driver-popover-next-btn:hover {
+  background-color: var(--color-primary-hover);
+  color: white;
+}
+
+.driver-popover.deexen-tour-popover .driver-popover-progress-text {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.driver-popover.deexen-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--bg-surface);
+}
+
+.driver-popover.deexen-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--bg-surface);
+}
+
+.driver-popover.deexen-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--bg-surface);
+}
+
+.driver-popover.deexen-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--bg-surface);
+}
