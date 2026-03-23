@@ -11,7 +11,7 @@ interface AuthState {
     isLoading: boolean;
     error: string | null;
     login: (email: string, password: string) => Promise<void>;
-    register: (name: string, email: string, password: string) => Promise<void>;
+    register: (name: string, email: string, password: string) => Promise<{ success: boolean; emailConfirmationRequired: boolean }>;
     logout: () => void;
     initialize: () => void;
     clearError: () => void;
@@ -119,16 +119,26 @@ export const useAuthStore = create<AuthState>()(
                     const { data, error } = await supabase.auth.signUp({
                         email,
                         password,
-                        options: { data: { name, full_name: name } },
+                        options: { 
+                            data: { name, full_name: name },
+                            emailRedirectTo: `${window.location.origin}/dashboard`
+                        },
                     });
+
                     if (error) {
                         console.error(`[useAuthStore] Supabase signup error:`, error.message, error.status);
+                        set({ error: error.message, isLoading: false });
                         throw error;
                     }
-                    if (!data.user) throw new Error('Registration failed: No user data returned');
+
+                    if (!data.user) {
+                        const noUserError = new Error('Registration failed: No user data returned');
+                        set({ error: noUserError.message, isLoading: false });
+                        throw noUserError;
+                    }
 
                     console.log(`[useAuthStore] Supabase signup successful for ${email}`);
-                    // If email confirmation is required, session may be null
+                    
                     if (data.session) {
                         const { user, token } = mapSupabaseUser(data.user, data.session.access_token);
                         set({
@@ -137,15 +147,14 @@ export const useAuthStore = create<AuthState>()(
                             isAuthenticated: true,
                             isLoading: false,
                         });
+                        return { success: true, emailConfirmationRequired: false };
                     } else {
-                        // Email confirmation required — user needs to check inbox
                         console.log(`[useAuthStore] Email confirmation required for ${email}`);
                         set({ isLoading: false });
+                        return { success: true, emailConfirmationRequired: true };
                     }
-                } catch (error: unknown) {
-                    const message = error && typeof error === 'object' && 'message' in error
-                        ? (error as { message: string }).message
-                        : 'Registration failed';
+                } catch (error: any) {
+                    const message = error?.message || 'Registration failed';
                     console.error(`[useAuthStore] Register catch block:`, message);
                     set({ error: message, isLoading: false });
                     throw error;

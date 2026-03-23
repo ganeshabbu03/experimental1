@@ -19,6 +19,7 @@ export default function SignupPage() {
     const [confirmError, setConfirmError] = useState('');
     const [formError, setFormError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isEmailSent, setIsEmailSent] = useState(false);
 
     const { register, initialize, isAuthenticated } = useAuthStore();
     const navigate = useNavigate();
@@ -86,10 +87,14 @@ export default function SignupPage() {
         setFormError('');
 
         try {
-            await register(name, email, password);
-            navigate('/onboarding'); // Fix: Redirect to onboarding instead of dashboard
-        } catch {
-            setFormError('Failed to create account. Please try again.');
+            const result = await register(name, email, password);
+            if (result.emailConfirmationRequired) {
+                setIsEmailSent(true);
+            } else {
+                navigate('/onboarding');
+            }
+        } catch (err: any) {
+            setFormError(err.message || 'Failed to create account. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -122,17 +127,37 @@ export default function SignupPage() {
                 {/* Form */}
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h1 className="text-[var(--text-primary)] text-xl font-medium">Create account</h1>
-                        <p className="text-[var(--text-secondary)] text-sm mt-1">Start building with Deexen AI</p>
+                        <h1 className="text-[var(--text-primary)] text-xl font-medium">
+                            {isEmailSent ? 'Check your email' : 'Create account'}
+                        </h1>
+                        <p className="text-[var(--text-secondary)] text-sm mt-1">
+                            {isEmailSent 
+                                ? `We've sent a verification link to ${email}` 
+                                : 'Start building with Deexen AI'}
+                        </p>
                     </div>
 
-                    <form className="space-y-4" onSubmit={handleSubmit}>
-                        {formError && (
-                            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center rounded">
-                                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                                {formError}
+                    {isEmailSent ? (
+                        <div className="space-y-6">
+                            <div className="p-4 bg-green-500/10 border border-green-500/20 text-green-400 text-sm rounded-lg flex flex-col items-center text-center">
+                                <CheckCircle2 className="w-8 h-8 mb-3 text-green-500" />
+                                <p>Please click the link in your email to confirm your account and continue to your workspace.</p>
                             </div>
-                        )}
+                            <Button
+                                onClick={() => navigate('/login')}
+                                className="w-full h-10 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+                            >
+                                Back to Login
+                            </Button>
+                        </div>
+                    ) : (
+                        <form className="space-y-4" onSubmit={handleSubmit}>
+                            {formError && (
+                                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center rounded">
+                                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                                    {formError}
+                                </div>
+                            )}
 
                         <div className="space-y-3">
                             {/* Name */}
@@ -237,6 +262,7 @@ export default function SignupPage() {
                             Create Account
                         </Button>
                     </form>
+                )}
 
                     {/* Divider */}
                     <div className="flex items-center gap-3">
