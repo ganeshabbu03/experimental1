@@ -8,8 +8,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as pty from 'node-pty';
 import * as os from 'os';
+import type { IPty } from 'node-pty';
 
 // ─── Event System ────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ export interface VscodeApiServices {
     /** Emit WebSocket event to the connected frontend client */
     wsEmit: (event: string, payload: any) => void;
     /** Spawn a real PTY terminal */
-    ptySpawner: (options: { name?: string; shellPath?: string; shellArgs?: string[]; cwd?: string; env?: any }) => pty.IPty;
+    ptySpawner: (options: { name?: string; shellPath?: string; shellArgs?: string[]; cwd?: string; env?: any }) => IPty;
     /** Path to workspace root */
     workspaceRoot: string;
     /** Path to configuration storage */
@@ -166,7 +166,7 @@ let requireLogged = false;
 
 export function createVscodeApi(services: VscodeApiServices) {
     const outputChannels = new Map<string, { lines: string[] }>();
-    const terminalInstances = new Map<string, { ptyProcess: pty.IPty; name: string }>();
+    const terminalInstances = new Map<string, { ptyProcess: IPty; name: string }>();
     let terminalIdCounter = 0;
     const webviewViewProviders = new Map<string, { provider: any; options?: any }>();
     const webviewInstances = new Map<string, {
