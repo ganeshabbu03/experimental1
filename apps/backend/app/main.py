@@ -7,7 +7,7 @@ import os
 # Load environment variables from .env file
 load_dotenv()
 
-from app.routes import auth, profile, projects, oauth, terminal
+from app.routes import auth, profile, projects, oauth, terminal, ai
 from app.routes.plugins_router import router as plugins_router
 from app.database import Base, engine
 from app.db_bootstrap import ensure_core_tables, ensure_schema_compatibility
@@ -64,6 +64,7 @@ def root():
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(profile.router, prefix="/profile", tags=["Profile"])
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
+app.include_router(ai.router, prefix="/ai", tags=["AI"])
 app.include_router(oauth.router, prefix="/oauth", tags=["OAuth"])
 app.include_router(terminal.router, prefix="/terminal", tags=["Terminal"])
 app.include_router(plugins_router, prefix="/plugins", tags=["Plugins"])
