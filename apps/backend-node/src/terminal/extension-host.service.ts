@@ -2,7 +2,6 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import * as pty from 'node-pty';
 import { execFile } from 'child_process';
 import * as _module from 'module';
 import { createVscodeApi, registeredCommands, logRequireInterception, VscodeApiServices } from './vscode-api';
@@ -10,6 +9,7 @@ import { ExtensionApiFrameworkService } from './extension-api-framework.service'
 
 @Injectable()
 export class ExtensionHostService implements OnModuleInit {
+    private ptyModule: any | null = null;
     private extensions: Map<string, any> = new Map();
     private isInitialized = false;
     private lastStorageSnapshot = '';
@@ -23,9 +23,14 @@ export class ExtensionHostService implements OnModuleInit {
     constructor(private extensionApiFramework: ExtensionApiFrameworkService) { }
 
     async onModuleInit() {
-        this.buildVscodeApi();
-        this.hijackRequire();
-        await this.reloadExtensions(true);
+        this.ptyModule = this.loadNodePty();
+        try {
+            this.buildVscodeApi();
+            this.hijackRequire();
+            await this.reloadExtensions(true);
+        } catch (error) {
+            console.error('[ExtensionHost] Startup degraded due to initialization error:', error);
+        }
     }
 
     /** Called by TerminalGateway to inject the real WebSocket emitter for the connected client */
@@ -45,6 +50,10 @@ export class ExtensionHostService implements OnModuleInit {
                 }
             },
             ptySpawner: (options) => {
+                const pty = this.ptyModule || this.loadNodePty();
+                if (!pty) {
+                    throw new Error('Terminal runtime unavailable: node-pty failed to load.');
+                }
                 const shell = options.shellPath || (os.platform() === 'win32' ? 'powershell.exe' : 'bash');
                 const args = options.shellArgs || [];
                 return pty.spawn(shell, args, {
@@ -87,6 +96,20 @@ export class ExtensionHostService implements OnModuleInit {
 
         this.isInitialized = true;
         console.log('[ExtensionHost] Hijacked require("vscode") → Deexen API bridge.');
+    }
+
+    private loadNodePty() {
+        if (this.ptyModule) {
+            return this.ptyModule;
+        }
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            this.ptyModule = require('node-pty');
+            return this.ptyModule;
+        } catch (error) {
+            console.error('[ExtensionHost] Failed to load node-pty; terminal features will be disabled.', error);
+            return null;
+        }
     }
 
     private getStorageDir(): string {

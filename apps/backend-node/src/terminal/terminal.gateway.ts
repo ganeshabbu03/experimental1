@@ -8,7 +8,6 @@ import {
     ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import * as pty from 'node-pty';
 import * as os from 'os';
 
 const isWindows = os.platform() === 'win32';
@@ -44,12 +43,34 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
     @WebSocketServer()
     server: Server;
 
-    private terminals: Map<string, pty.IPty> = new Map();
+    private ptyModule: any | null = null;
+    private terminals: Map<string, any> = new Map();
 
-    constructor(private extensionHostService: ExtensionHostService) { }
+    constructor(private extensionHostService: ExtensionHostService) {
+        this.ptyModule = this.loadNodePty();
+    }
+
+    private loadNodePty() {
+        if (this.ptyModule) {
+            return this.ptyModule;
+        }
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            this.ptyModule = require('node-pty');
+            return this.ptyModule;
+        } catch (error) {
+            console.error('[Terminal] Failed to load node-pty; terminal sockets will be disabled.', error);
+            return null;
+        }
+    }
 
     handleConnection(client: Socket) {
         console.log(`[Terminal] Client connected: ${client.id}`);
+        const pty = this.ptyModule || this.loadNodePty();
+        if (!pty) {
+            client.emit('terminal.error', 'Terminal backend is unavailable on this deployment.');
+            return;
+        }
 
         // Wire real WebSocket emitter so extensions can push events to this client
         this.extensionHostService.setWebSocketEmitter((event: string, payload: any) => {
