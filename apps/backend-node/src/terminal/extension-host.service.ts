@@ -23,6 +23,13 @@ export class ExtensionHostService implements OnModuleInit {
     constructor(private extensionApiFramework: ExtensionApiFrameworkService) { }
 
     async onModuleInit() {
+        // Fire-and-forget: never block NestJS bootstrap
+        this.safeInit().catch((err) => {
+            console.error('[ExtensionHost] Background init failed:', err);
+        });
+    }
+
+    private async safeInit() {
         this.ptyModule = this.loadNodePty();
         try {
             this.buildVscodeApi();
@@ -32,6 +39,7 @@ export class ExtensionHostService implements OnModuleInit {
             console.error('[ExtensionHost] Startup degraded due to initialization error:', error);
         }
     }
+
 
     /** Called by TerminalGateway to inject the real WebSocket emitter for the connected client */
     public setWebSocketEmitter(emitter: (event: string, payload: any) => void) {

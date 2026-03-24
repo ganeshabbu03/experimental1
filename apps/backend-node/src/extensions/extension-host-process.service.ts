@@ -21,19 +21,36 @@ export class ExtensionHostProcessService implements OnModuleInit, OnModuleDestro
     ) { }
 
     async onModuleInit() {
-        const started = await this.startHost();
-        if (!started) {
-            this.logger.warn('Extension host is unavailable at startup; continuing without extension runtime.');
-            return;
-        }
+        // Run extension host startup in background - never block NestJS bootstrap
+        this.safeStartup().catch((err) => {
+            this.logger.error(`Extension host background startup failed: ${err?.message || err}`);
+        });
+    }
 
+    private async safeStartup() {
         try {
-            await this.reloadExtensions();
-            await this.activateEvent('onStartupFinished');
+            const started = await Promise.race([
+                this.startHost(),
+                new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Host startup timeout (10s)')), 10000)),
+            ]);
+
+            if (!started) {
+                this.logger.warn('Extension host is unavailable at startup; continuing without extension runtime.');
+                return;
+            }
+
+            await Promise.race([
+                (async () => {
+                    await this.reloadExtensions();
+                    await this.activateEvent('onStartupFinished');
+                })(),
+                new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Extension reload/activate timeout (15s)')), 15000)),
+            ]);
         } catch (error) {
             this.logger.error(`Extension host startup sequence failed: ${(error as Error)?.message || error}`);
         }
     }
+
 
     async onModuleDestroy() {
         try {
