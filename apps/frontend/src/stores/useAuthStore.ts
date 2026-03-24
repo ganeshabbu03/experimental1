@@ -101,13 +101,11 @@ export const useAuthStore = create<AuthState>()(
                         isAuthenticated: true,
                         isLoading: false,
                     });
-                } catch (error: unknown) {
-                    const message = error && typeof error === 'object' && 'message' in error
-                        ? (error as { message: string }).message
-                        : 'Login failed';
+                } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : 'Login failed';
                     console.error(`[useAuthStore] Login catch block:`, message);
                     set({ error: message, isLoading: false });
-                    throw error;
+                    throw err;
                 }
             },
 
@@ -153,8 +151,8 @@ export const useAuthStore = create<AuthState>()(
                         set({ isLoading: false });
                         return { success: true, emailConfirmationRequired: true };
                     }
-                } catch (error: any) {
-                    const message = error?.message || 'Registration failed';
+                } catch (error: unknown) {
+                    const message = error instanceof Error ? error.message : 'Registration failed';
                     console.error(`[useAuthStore] Register catch block:`, message);
                     set({ error: message, isLoading: false });
                     throw error;

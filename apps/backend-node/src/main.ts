@@ -18,6 +18,7 @@ async function bootstrap() {
             .filter((origin) => origin.length > 0);
         const allowedOrigins = Array.from(new Set([...localOrigins, ...configuredOrigins]));
 
+        console.log('[Bootstrap] Configuring CORS with origins:', allowedOrigins);
         app.enableCors({
             origin: (origin, callback) => {
                 if (!origin) {
@@ -38,14 +39,28 @@ async function bootstrap() {
         app.useGlobalPipes(new ValidationPipe());
 
         const defaultPort = process.env.NODE_ENV === 'production' ? '8080' : '3000';
-        const port = Number.parseInt(process.env.PORT || defaultPort, 10) || Number.parseInt(defaultPort);
+        const rawPort = process.env.PORT || defaultPort;
+        const port = Number.parseInt(rawPort, 10);
         
-        console.log(`[Bootstrap] Attempting to listen on port: ${port}`);
-        await app.listen(port, '0.0.0.0');
-        console.log(`[Bootstrap] Application is running on: ${await app.getUrl()}`);
+        if (Number.isNaN(port)) {
+            console.error(`[Bootstrap] Invalid port encountered: "${rawPort}". Falling back to 8080.`);
+        }
+
+        const finalPort = Number.isNaN(port) ? 8080 : port;
+        
+        console.log(`[Bootstrap] Attempting to listen on 0.0.0.0:${finalPort}`);
+        await app.listen(finalPort, '0.0.0.0');
+        console.log(`[Bootstrap] Application is successfully listening on 0.0.0.0:${finalPort}`);
     } catch (error) {
         console.error('[Bootstrap] Fatal error during startup:', error);
+        // Explicitly log stack trace for easier debugging on Railway
+        if (error instanceof Error) {
+            console.error(error.stack);
+        }
         process.exit(1);
     }
 }
-bootstrap();
+bootstrap().catch(err => {
+    console.error('[Bootstrap] Unhandled error in bootstrap promise:', err);
+    process.exit(1);
+});

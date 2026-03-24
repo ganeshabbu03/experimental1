@@ -17,7 +17,8 @@ gemini_model = None
 if gemini_api_key:
     try:
         genai.configure(api_key=gemini_api_key)
-        gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+        # Correcting model ID from 2.5 (non-existent) to 1.5-flash
+        gemini_model = genai.GenerativeModel('gemini-1.5-flash')
         print("Gemini model initialized successfully.")
     except Exception as e:
         print(f"Failed to initialize Gemini: {e}")
@@ -97,19 +98,19 @@ async def analyze_code(request: AnalyzeRequest):
         
     system_prompt = f"{persona}\n\nTask Instructions:\n{mode_instructions}"
 
-    # Map frontend model IDs to exact OpenRouter Free endpoints
+    # Map frontend model IDs to exact OpenRouter/External endpoints
     model_map = {
-        "gemini": "google/gemini-2.5-flash",
-        "opus": "anthropic/claude-3.7-sonnet", # mapping to default highest sonnet or opus
+        "gemini": "google/gemini-flash-1.5",
+        "opus": "anthropic/claude-3-opus",
         "sonnet": "anthropic/claude-3.5-sonnet",
         "gpt4": "openai/gpt-4o",
-        "gemini-free": "google/gemma-3-27b-it:free",
-        "llama-70b-free": "meta-llama/llama-3.3-70b-instruct:free",
-        "llama-8b-free": "meta-llama/llama-3.2-3b-instruct:free",
-        "deepseek-free": "openrouter/free",
-        "mistral-nemo-free": "mistralai/mistral-small-3.1-24b-instruct:free",
-        "qwen-coder-free": "qwen/qwen3-coder:free",
-        "magicoder": "qwen/qwen3-coder:free", # fallback if openrouter is used
+        "gemini-free": "google/gemini-flash-1.5-exp",
+        "llama-70b-free": "meta-llama/llama-3.3-70b-instruct",
+        "llama-8b-free": "meta-llama/llama-3.2-3b-instruct",
+        "deepseek-free": "deepseek/deepseek-chat",
+        "mistral-nemo-free": "mistralai/mistral-nemo",
+        "qwen-coder-free": "qwen/qwen-2.5-coder-32b-instruct",
+        "magicoder": "qwen/qwen-2.5-coder-32b-instruct",
     }
     
     # Use mapped name if available, otherwise use original

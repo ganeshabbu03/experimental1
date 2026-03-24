@@ -93,8 +93,8 @@ export default function SignupPage() {
             } else {
                 navigate('/onboarding');
             }
-        } catch (err: any) {
-            setFormError(err.message || 'Failed to create account. Please try again.');
+        } catch (err: unknown) {
+            setFormError(err instanceof Error ? err.message : 'Failed to create account. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -117,7 +117,7 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="min-h-screen w-full bg-[var(--bg-canvas)] flex items-center justify-center font-sans">
+        <div className="min-h-screen w-full bg-(--bg-canvas) flex items-center justify-center font-sans">
             <div className="w-full max-w-[360px] px-6">
                 {/* Logo */}
                 <div className="flex items-center justify-center mb-10">
@@ -127,10 +127,10 @@ export default function SignupPage() {
                 {/* Form */}
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h1 className="text-[var(--text-primary)] text-xl font-medium">
+                        <h1 className="text-(--text-primary) text-xl font-medium">
                             {isEmailSent ? 'Check your email' : 'Create account'}
                         </h1>
-                        <p className="text-[var(--text-secondary)] text-sm mt-1">
+                        <p className="text-(--text-secondary) text-sm mt-1">
                             {isEmailSent 
                                 ? `We've sent a verification link to ${email}` 
                                 : 'Start building with Deexen AI'}
@@ -145,7 +145,7 @@ export default function SignupPage() {
                             </div>
                             <Button
                                 onClick={() => navigate('/login')}
-                                className="w-full h-10 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors"
+                                className="w-full h-10 bg-(--bg-surface) border border-(--border-default) rounded text-sm text-(--text-primary) hover:bg-(--bg-surface-hover) transition-colors"
                             >
                                 Back to Login
                             </Button>
@@ -154,7 +154,7 @@ export default function SignupPage() {
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             {formError && (
                                 <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center rounded">
-                                    <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                                    <AlertCircle className="w-4 h-4 mr-2 shrink-0" />
                                     {formError}
                                 </div>
                             )}
@@ -162,7 +162,7 @@ export default function SignupPage() {
                         <div className="space-y-3">
                             {/* Name */}
                             <div>
-                                <label htmlFor="name" className="block text-sm text-[var(--text-secondary)] mb-1.5">
+                                <label htmlFor="name" className="block text-sm text-(--text-secondary) mb-1.5">
                                     Full Name
                                 </label>
                                 <div className="relative">
@@ -171,7 +171,7 @@ export default function SignupPage() {
                                         type="text"
                                         required
                                         placeholder="John Doe"
-                                        className={`w-full h-10 px-3 bg-[var(--bg-surface)] border-[var(--border-default)] rounded text-[var(--text-primary)] text-sm placeholder:text-[var(--text-secondary)] focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${nameError ? 'border-red-500/50' : ''}`}
+                                        className={`w-full h-10 px-3 bg-(--bg-surface) border-(--border-default) rounded text-(--text-primary) text-sm placeholder:text-(--text-secondary) focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${nameError ? 'border-red-500/50' : ''}`}
                                         value={name}
                                         onChange={handleNameChange}
                                     />
@@ -184,7 +184,7 @@ export default function SignupPage() {
 
                             {/* Email */}
                             <div>
-                                <label htmlFor="email" className="block text-sm text-[var(--text-secondary)] mb-1.5">
+                                <label htmlFor="email" className="block text-sm text-(--text-secondary) mb-1.5">
                                     Email
                                 </label>
                                 <div className="relative">
@@ -193,7 +193,7 @@ export default function SignupPage() {
                                         type="email"
                                         required
                                         placeholder="you@example.com"
-                                        className={`w-full h-10 px-3 bg-[var(--bg-surface)] border-[var(--border-default)] rounded text-[var(--text-primary)] text-sm placeholder:text-[var(--text-secondary)] focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${emailError ? 'border-red-500/50' : ''}`}
+                                        className={`w-full h-10 px-3 bg-(--bg-surface) border-(--border-default) rounded text-(--text-primary) text-sm placeholder:text-(--text-secondary) focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${emailError ? 'border-red-500/50' : ''}`}
                                         value={email}
                                         onChange={handleEmailChange}
                                     />
@@ -206,7 +206,7 @@ export default function SignupPage() {
 
                             {/* Password */}
                             <div>
-                                <label htmlFor="password" className="block text-sm text-[var(--text-secondary)] mb-1.5">
+                                <label htmlFor="password" className="block text-sm text-(--text-secondary) mb-1.5">
                                     Password
                                 </label>
                                 <div className="relative">
@@ -215,14 +215,14 @@ export default function SignupPage() {
                                         type={showPassword ? 'text' : 'password'}
                                         required
                                         placeholder="••••••••"
-                                        className={`w-full h-10 px-3 pr-10 bg-[var(--bg-surface)] border-[var(--border-default)] rounded text-[var(--text-primary)] text-sm placeholder:text-[var(--text-secondary)] focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${passwordError ? 'border-red-500/50' : ''}`}
+                                        className={`w-full h-10 px-3 pr-10 bg-(--bg-surface) border-(--border-default) rounded text-(--text-primary) text-sm placeholder:text-(--text-secondary) focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${passwordError ? 'border-red-500/50' : ''}`}
                                         value={password}
                                         onChange={handlePasswordChange}
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-secondary) hover:text-(--text-primary)"
                                     >
                                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                     </button>
@@ -232,7 +232,7 @@ export default function SignupPage() {
 
                             {/* Confirm Password */}
                             <div>
-                                <label htmlFor="confirmPassword" className="block text-sm text-[var(--text-secondary)] mb-1.5">
+                                <label htmlFor="confirmPassword" className="block text-sm text-(--text-secondary) mb-1.5">
                                     Confirm Password
                                 </label>
                                 <div className="relative">
@@ -241,7 +241,7 @@ export default function SignupPage() {
                                         type={showPassword ? 'text' : 'password'}
                                         required
                                         placeholder="••••••••"
-                                        className={`w-full h-10 px-3 bg-[var(--bg-surface)] border-[var(--border-default)] rounded text-[var(--text-primary)] text-sm placeholder:text-[var(--text-secondary)] focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${confirmError ? 'border-red-500/50' : ''}`}
+                                        className={`w-full h-10 px-3 bg-(--bg-surface) border-(--border-default) rounded text-(--text-primary) text-sm placeholder:text-(--text-secondary) focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors ${confirmError ? 'border-red-500/50' : ''}`}
                                         value={confirmPassword}
                                         onChange={handleConfirmChange}
                                     />
@@ -266,23 +266,23 @@ export default function SignupPage() {
 
                     {/* Divider */}
                     <div className="flex items-center gap-3">
-                        <div className="flex-1 h-px bg-[var(--border-default)]" />
-                        <span className="text-xs text-[var(--text-secondary)]">or</span>
-                        <div className="flex-1 h-px bg-[var(--border-default)]" />
+                        <div className="flex-1 h-px bg-(--border-default)" />
+                        <span className="text-xs text-(--text-secondary)">or</span>
+                        <div className="flex-1 h-px bg-(--border-default)" />
                     </div>
 
                     {/* Social */}
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => handleOAuthSignup('github')}
-                            className="h-10 flex items-center justify-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--border-muted)] transition-colors"
+                            className="h-10 flex items-center justify-center gap-2 bg-(--bg-surface) border border-(--border-default) rounded text-sm text-(--text-secondary) hover:bg-(--bg-surface-hover) hover:border-(--border-muted) transition-colors"
                         >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
                             GitHub
                         </button>
                         <button
                             onClick={() => handleOAuthSignup('google')}
-                            className="h-10 flex items-center justify-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--border-muted)] transition-colors"
+                            className="h-10 flex items-center justify-center gap-2 bg-(--bg-surface) border border-(--border-default) rounded text-sm text-(--text-secondary) hover:bg-(--bg-surface-hover) hover:border-(--border-muted) transition-colors"
                         >
                             <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#fff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#fff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#fff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#fff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
                             Google
@@ -290,17 +290,17 @@ export default function SignupPage() {
                     </div>
 
                     {/* Footer */}
-                    <p className="text-center text-sm text-[var(--text-secondary)]">
+                    <p className="text-center text-sm text-(--text-secondary)">
                         Already have an account?{' '}
                         <Link to="/login" className="text-orange-500 hover:underline">Sign in</Link>
                     </p>
 
                     {/* Terms */}
-                    <p className="text-center text-xs text-[var(--text-secondary)]">
+                    <p className="text-center text-xs text-(--text-secondary)">
                         By creating an account, you agree to our{' '}
-                        <a href="#" className="text-[var(--text-secondary)] hover:text-orange-500">Terms of Service</a>
+                        <a href="#" className="text-(--text-secondary) hover:text-orange-500">Terms of Service</a>
                         {' '}and{' '}
-                        <a href="#" className="text-[var(--text-secondary)] hover:text-orange-500">Privacy Policy</a>
+                        <a href="#" className="text-(--text-secondary) hover:text-orange-500">Privacy Policy</a>
                     </p>
                 </div>
             </div>
