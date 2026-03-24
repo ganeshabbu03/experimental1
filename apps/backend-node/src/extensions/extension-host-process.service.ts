@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fork, ChildProcess } from 'child_process';
@@ -10,6 +10,7 @@ import { HostRequest, HostResponse } from './contracts';
 
 @Injectable()
 export class ExtensionHostProcessService implements OnModuleInit, OnModuleDestroy {
+    private readonly logger = new Logger(ExtensionHostProcessService.name);
     private child: ChildProcess | null = null;
     private pending = new Map<string, { resolve: (v: any) => void; reject: (e: any) => void; timer: NodeJS.Timeout }>();
 
@@ -20,9 +21,18 @@ export class ExtensionHostProcessService implements OnModuleInit, OnModuleDestro
     ) { }
 
     async onModuleInit() {
-        await this.startHost();
-        await this.reloadExtensions();
-        await this.activateEvent('onStartupFinished');
+        const started = await this.startHost();
+        if (!started) {
+            this.logger.warn('Extension host is unavailable at startup; continuing without extension runtime.');
+            return;
+        }
+
+        try {
+            await this.reloadExtensions();
+            await this.activateEvent('onStartupFinished');
+        } catch (error) {
+            this.logger.error(`Extension host startup sequence failed: ${(error as Error)?.message || error}`);
+        }
     }
 
     async onModuleDestroy() {
@@ -32,28 +42,65 @@ export class ExtensionHostProcessService implements OnModuleInit, OnModuleDestro
         if (this.child) this.child.kill();
     }
 
-    private hostScriptPath() {
-        const jsPath = path.resolve(__dirname, 'extension-host-process.js');
-        if (fs.existsSync(jsPath)) return jsPath;
-        return path.resolve(process.cwd(), 'src', 'extensions', 'extension-host-process.ts');
+    private hostScriptPath(): string | null {
+        const candidates = [
+            path.resolve(__dirname, 'extension-host-process.js'),
+            path.resolve(process.cwd(), 'dist', 'extensions', 'extension-host-process.js'),
+            path.resolve(process.cwd(), 'src', 'extensions', 'extension-host-process.ts'),
+        ];
+
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate)) return candidate;
+        }
+
+        return null;
     }
 
-    private async startHost() {
-        if (this.child) return;
+    private async startHost(): Promise<boolean> {
+        if (this.child) return true;
 
         const script = this.hostScriptPath();
-        const isTs = script.endsWith('.ts');
+        if (!script) {
+            this.logger.warn('Extension host script not found in dist or src; skipping host process startup.');
+            return false;
+        }
 
-        this.child = fork(script, [], {
-            stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-            execArgv: isTs ? ['-r', 'ts-node/register'] : [],
-        });
+        const isTs = script.endsWith('.ts');
+        const execArgv: string[] = [];
+
+        if (isTs) {
+            try {
+                require.resolve('ts-node/register');
+                execArgv.push('-r', 'ts-node/register');
+            } catch {
+                this.logger.error(`Extension host fallback script is TypeScript (${script}) but ts-node is unavailable.`);
+                return false;
+            }
+        }
+
+        try {
+            this.child = fork(script, [], {
+                stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+                execArgv,
+            });
+        } catch (error) {
+            this.child = null;
+            this.logger.error(`Failed to fork extension host (${script}): ${(error as Error)?.message || error}`);
+            return false;
+        }
 
         this.child.on('message', (msg: HostResponse) => this.handleHostMessage(msg));
 
-        this.child.on('exit', () => {
+        this.child.on('error', (error) => {
+            this.logger.error(`Extension host process error: ${error?.message || error}`);
+        });
+
+        this.child.on('exit', (code, signal) => {
+            this.logger.warn(`Extension host exited (code=${code ?? 'null'}, signal=${signal ?? 'null'}).`);
             this.child = null;
         });
+
+        return true;
     }
 
     private handleHostMessage(msg: HostResponse) {
@@ -109,7 +156,12 @@ export class ExtensionHostProcessService implements OnModuleInit, OnModuleDestro
     }
 
     private async call(type: HostRequest['type'], payload?: any): Promise<any> {
-        if (!this.child) throw new Error('Extension host is not running');
+        if (!this.child) {
+            const started = await this.startHost();
+            if (!started || !this.child) {
+                throw new Error('Extension host is unavailable');
+            }
+        }
 
         const requestId = randomUUID();
         const req: HostRequest = { requestId, type, payload };
@@ -121,7 +173,13 @@ export class ExtensionHostProcessService implements OnModuleInit, OnModuleDestro
             }, 15000);
 
             this.pending.set(requestId, { resolve, reject, timer });
-            this.child?.send(req);
+            try {
+                this.child?.send(req);
+            } catch (error) {
+                clearTimeout(timer);
+                this.pending.delete(requestId);
+                reject(error);
+            }
         });
     }
 
