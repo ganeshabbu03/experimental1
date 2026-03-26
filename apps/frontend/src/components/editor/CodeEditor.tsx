@@ -26,7 +26,7 @@ export default function CodeEditor() {
     const [activeContent, setActiveContent] = React.useState('');
     const [activeLanguage, setActiveLanguage] = React.useState('typescript');
 
-    const handleRun = () => {
+    const handleRun = async () => {
         if (!activeFileId) return;
 
         if (!isTerminalOpen) {
@@ -170,12 +170,24 @@ export default function CodeEditor() {
                                 setActiveContent(value);
                                 updateFileContent(activeFileId, value);
 
-                                if (projectId && !activeFileId.includes('root') && !activeFileId.includes('project')) {
+                                const filePath = getFileBreadcrumbs(files, activeFileId);
+                                const isRealFile = !!filePath && findFileContent(activeFileId)?.type === 'file';
+
+                                if (projectId && isRealFile) {
                                     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
                                     saveTimeoutRef.current = setTimeout(() => {
-                                        projectService.saveFile(projectId, activeFileId, value).catch(err => {
-                                            console.error("Failed to auto-save file:", err);
-                                        });
+                                        const persistFile = async () => {
+                                            try {
+                                                const resolvedFileId = /^\d+$/.test(activeFileId)
+                                                    ? activeFileId
+                                                    : await projectService.ensureFilePath(projectId, filePath, value);
+                                                await projectService.saveFile(projectId, resolvedFileId, value);
+                                            } catch (err) {
+                                                console.error('Failed to auto-save file:', err);
+                                            }
+                                        };
+
+                                        void persistFile();
                                     }, 1000);
                                 }
                             }

@@ -94,22 +94,22 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     setActiveSession: (id) => set({ activeSessionId: id }),
 
     sendInput: (data) => {
-        const { socket, isConnected } = get();
-        if (socket && isConnected) {
+        const { socket } = get();
+        if (socket) {
             socket.emit('terminal.input', data);
         }
     },
 
     resizeTerminal: (cols, rows) => {
-        const { socket, isConnected } = get();
-        if (socket && isConnected) {
+        const { socket } = get();
+        if (socket) {
             socket.emit('terminal.resize', { cols, rows });
         }
     },
 
     runFile: (payload) => {
-        const { socket, isConnected } = get();
-        if (socket && isConnected) {
+        const { socket } = get();
+        if (socket) {
             socket.emit('terminal.run', payload);
         }
     }

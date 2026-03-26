@@ -4,6 +4,8 @@ import { DndContext, useDraggable, useDroppable, DragOverlay, type DragStartEven
 import { useFileStore, type FileNode } from '@/stores/useFileStore';
 import { cn } from '@/utils/cn';
 import FileOperationModal from './FileOperationModal';
+import { useParams } from 'react-router-dom';
+import { projectFilesToFileNodes, projectService } from '@/services/projectService';
 
 interface ContextMenuPosition {
     x: number;
@@ -231,7 +233,8 @@ const FileTreeItem = ({ node, level, onContextMenu, renamingId, onRenameSubmit, 
 };
 
 export default function FileExplorer() {
-    const { files, createFile, deleteNode, renameNode, collapseAllFolders, copyNode, cutNode, pasteNode, projectName, moveNode, activeFileId } = useFileStore();
+    const { projectId } = useParams();
+    const { files, createFile, deleteNode, renameNode, collapseAllFolders, copyNode, cutNode, pasteNode, projectName, moveNode, activeFileId, setFiles } = useFileStore();
     const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -407,9 +410,26 @@ export default function FileExplorer() {
         }
     };
 
-    const handleCreationSubmit = (parentId: string | null, name: string, _: 'file' | 'folder') => {
-        createFile(parentId, name);
-        setCreationState(null);
+    const handleCreationSubmit = (parentId: string | null, name: string, type: 'file' | 'folder') => {
+        const createNode = async () => {
+            if (projectId) {
+                try {
+                    const backendParentId = parentId && /^\d+$/.test(parentId) ? parentId : undefined;
+                    await projectService.createFile(projectId, name, type, backendParentId);
+                    const refreshedFiles = await projectService.getProjectFiles(projectId);
+                    setFiles(projectFilesToFileNodes(refreshedFiles));
+                    setCreationState(null);
+                    return;
+                } catch (error) {
+                    console.error('Failed to create file in backend:', error);
+                }
+            }
+
+            createFile(parentId, name);
+            setCreationState(null);
+        };
+
+        void createNode();
     };
 
     const onRenameSubmit = (id: string, newName: string) => {

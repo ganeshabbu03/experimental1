@@ -6,6 +6,7 @@ import { cn } from '@/utils/cn';
 import { useFileStore, getFileBreadcrumbs, type FileNode } from '@/stores/useFileStore';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import { useProjectStore } from '@/stores/useProjectStore';
+import { projectFilesToFileNodes, projectService } from '@/services/projectService';
 import FileExplorer from '@/components/file-explorer/FileExplorer';
 import CodeEditor from '@/components/editor/CodeEditor';
 import { runWorkspaceTour } from '@/services/tourService';
@@ -112,14 +113,32 @@ export default function WorkspacePage() {
     useEffect(() => {
         if (!projectId) return;
 
-        const project = projects.find(p => p.id === projectId);
-        if (project) {
+        let isMounted = true;
+
+        const loadWorkspace = async () => {
+            const project = projects.find(p => p.id === projectId);
+            if (!project) {
+                navigate('/dashboard');
+                return;
+            }
+
             setProjectName(project.name);
+
+            try {
+                const backendFiles = await projectService.getProjectFiles(projectId);
+                if (!isMounted) return;
+
+                if (backendFiles.length > 0) {
+                    setFiles(projectFilesToFileNodes(backendFiles));
+                    return;
+                }
+            } catch (error) {
+                console.error('Failed to load project files from backend:', error);
+            }
 
             if (project.fileTree) {
                 setFiles(project.fileTree);
             } else {
-                // Default structure for new/empty projects
                 const defaultFiles: FileNode[] = [
                     {
                         id: 'root',
@@ -146,10 +165,13 @@ export default function WorkspacePage() {
                 ];
                 setFiles(defaultFiles);
             }
-        } else {
-            // Project not found - likely deleted or invalid ID
-            navigate('/dashboard');
-        }
+        };
+
+        void loadWorkspace();
+
+        return () => {
+            isMounted = false;
+        };
     }, [projectId, projects, setFiles, setProjectName, navigate]);
 
 

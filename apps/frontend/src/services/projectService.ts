@@ -2,6 +2,7 @@
 // Handles project CRUD operations with real FastAPI backend
 
 import { apiClient } from './apiClient';
+import type { FileNode } from '@/stores/useFileStore';
 
 export interface Project {
     id: string;
@@ -21,6 +22,27 @@ export interface ProjectFile {
     content: string;
     type: 'file' | 'folder';
     children?: ProjectFile[];
+}
+
+export function projectFilesToFileNodes(files: ProjectFile[]): FileNode[] {
+    const mapNode = (file: ProjectFile): FileNode => ({
+        id: file.id,
+        name: file.name,
+        type: file.type,
+        content: file.content,
+        isOpen: file.type === 'folder',
+        children: file.children?.map(mapNode),
+    });
+
+    return [
+        {
+            id: 'root',
+            name: 'root',
+            type: 'folder',
+            isOpen: true,
+            children: files.map(mapNode),
+        },
+    ];
 }
 
 interface CreateProjectRequest {
@@ -114,6 +136,21 @@ function mapBackendFiles(files: BackendFile[]): ProjectFile[] {
 }
 
 class ProjectService {
+    private findNodeByPath(files: ProjectFile[], segments: string[]): ProjectFile | null {
+        let currentLevel = files;
+        let current: ProjectFile | null = null;
+
+        for (const segment of segments) {
+            current = currentLevel.find((node) => node.name === segment) || null;
+            if (!current) {
+                return null;
+            }
+            currentLevel = current.children || [];
+        }
+
+        return current;
+    }
+
     async listProjects(): Promise<Project[]> {
         console.log('[projectService] About to call GET /projects/');
         try {
@@ -157,13 +194,63 @@ class ProjectService {
         await apiClient.put(`/projects/${projectId}/files/${fileId}`, { content });
     }
 
-    async createFile(projectId: string, name: string, fileType: string, parentId?: string, content?: string): Promise<void> {
-        await apiClient.post(`/projects/${projectId}/files`, {
+    async createFile(projectId: string, name: string, fileType: string, parentId?: string, content?: string): Promise<ProjectFile> {
+        const file = await apiClient.post<BackendFile>(`/projects/${projectId}/files`, {
             name,
             file_type: fileType,
             parent_id: parentId ? Number(parentId) : null,
             content: content || null,
         });
+
+        return {
+            id: String(file.id),
+            name: file.name,
+            path: file.name,
+            content: file.content || '',
+            type: file.file_type as 'file' | 'folder',
+            children: file.file_type === 'folder' ? [] : undefined,
+        };
+    }
+
+    async ensureFilePath(projectId: string, relativePath: string, content: string = ''): Promise<string> {
+        const segments = relativePath
+            .replace(/\\/g, '/')
+            .split('/')
+            .map((segment) => segment.trim())
+            .filter(Boolean);
+
+        if (segments.length === 0) {
+            throw new Error('A valid file path is required');
+        }
+
+        let files = await this.getProjectFiles(projectId);
+        let parentId: string | undefined;
+
+        for (let index = 0; index < segments.length; index += 1) {
+            const isLeaf = index === segments.length - 1;
+            const currentPath = segments.slice(0, index + 1);
+            let existing = this.findNodeByPath(files, currentPath);
+
+            if (!existing) {
+                await this.createFile(
+                    projectId,
+                    segments[index],
+                    isLeaf ? 'file' : 'folder',
+                    parentId,
+                    isLeaf ? content : undefined,
+                );
+                files = await this.getProjectFiles(projectId);
+                existing = this.findNodeByPath(files, currentPath);
+            }
+
+            if (!existing) {
+                throw new Error(`Failed to resolve file path ${relativePath}`);
+            }
+
+            parentId = existing.id;
+        }
+
+        return parentId!;
     }
 }
 
