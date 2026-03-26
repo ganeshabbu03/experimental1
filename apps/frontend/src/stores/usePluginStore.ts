@@ -66,8 +66,8 @@ export const usePluginStore = create<PluginState>()(
             },
 
             uninstallPlugin: (publisher, extension) => {
-                // Fire and forget: tell the backend to delete the VSIX and extracted folder
-                extensionService.uninstallExtension(publisher, extension).catch(err => {
+                // Fire and forget: tell the workspace backend to unload and remove the extension.
+                extensionService.uninstallWorkspaceExtension(publisher, extension).catch(err => {
                     console.error('Failed to uninstall on backend:', err);
                 });
 

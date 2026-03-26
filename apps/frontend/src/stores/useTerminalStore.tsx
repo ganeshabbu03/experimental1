@@ -19,13 +19,14 @@ interface TerminalState {
     isConnected: boolean;
 
     // Actions
-    connect: () => void;
+    connect: (context?: { workspaceId?: string | null; projectName?: string | null }) => void;
     disconnect: () => void;
     addSession: (name: string) => void;
     deleteActiveSession: () => void;
     setActiveSession: (id: string) => void;
     sendInput: (data: string) => void;
     resizeTerminal: (cols: number, rows: number) => void;
+    runFile: (payload: { filename: string; content: string; command?: string }) => void;
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -36,9 +37,18 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     activeSessionId: 'initial',
     isConnected: false,
 
-    connect: () => {
+    connect: (context) => {
+        const existingSocket = get().socket;
+        if (existingSocket) {
+            existingSocket.disconnect();
+        }
+
         const socket = io(runtimeConfig.wsBaseUrl, {
             transports: ['websocket', 'polling'],
+            auth: {
+                workspaceId: context?.workspaceId || undefined,
+                projectName: context?.projectName || undefined,
+            },
         });
 
         socket.on('connect', () => {
@@ -94,6 +104,13 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
         const { socket, isConnected } = get();
         if (socket && isConnected) {
             socket.emit('terminal.resize', { cols, rows });
+        }
+    },
+
+    runFile: (payload) => {
+        const { socket, isConnected } = get();
+        if (socket && isConnected) {
+            socket.emit('terminal.run', payload);
         }
     }
 }));

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import Editor, { loader } from '@monaco-editor/react';
 import { X, FileCode, Play } from 'lucide-react';
-import { useFileStore } from '@/stores/useFileStore';
+import { useFileStore, getFileBreadcrumbs } from '@/stores/useFileStore';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import { useTerminalStore } from '@/stores/useTerminalStore';
@@ -19,7 +19,7 @@ export default function CodeEditor() {
     const { openFiles, activeFileId, files, closeFile, selectFile, updateFileContent } = useFileStore();
     const { theme } = useThemeStore();
     const { isAIPanelOpen, toggleAIPanel, setTerminalOpen, isTerminalOpen } = useLayoutStore();
-    const { sendInput } = useTerminalStore();
+    const { runFile } = useTerminalStore();
     const { projectId } = useParams();
     const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -27,24 +27,23 @@ export default function CodeEditor() {
     const [activeLanguage, setActiveLanguage] = React.useState('typescript');
 
     const handleRun = () => {
+        if (!activeFileId) return;
+
         if (!isTerminalOpen) {
             setTerminalOpen(true);
         }
 
-        let runCommand = "npm run dev\\r";
+        const filePath = getFileBreadcrumbs(files, activeFileId);
+        const file = findFileContent(activeFileId);
+        if (!filePath || !file || file.type !== 'file') return;
 
-        if (activeLanguage === 'python') {
-            const fileName = activeFileId?.split('/').pop() || 'main.py';
-            runCommand = `python ${fileName}\\r`;
-        } else if (activeLanguage === 'javascript') {
-            const fileName = activeFileId?.split('/').pop() || 'index.js';
-            runCommand = `node ${fileName}\\r`;
-        }
-
-        // Timeout to ensure terminal is mounted/connected if it was just opened
+        const runDelayMs = isTerminalOpen ? 0 : 250;
         setTimeout(() => {
-            sendInput(runCommand);
-        }, 100);
+            runFile({
+                filename: filePath,
+                content: activeContent,
+            });
+        }, runDelayMs);
     };
 
     const findFileContent = (fileId: string) => {
@@ -67,6 +66,12 @@ export default function CodeEditor() {
             if (file) {
                 setActiveContent(file.content || '');
                 if (file.name.endsWith('.tsx') || file.name.endsWith('.ts')) setActiveLanguage('typescript');
+                else if (file.name.endsWith('.py')) setActiveLanguage('python');
+                else if (file.name.endsWith('.js')) setActiveLanguage('javascript');
+                else if (file.name.endsWith('.jsx')) setActiveLanguage('javascript');
+                else if (file.name.endsWith('.java')) setActiveLanguage('java');
+                else if (file.name.endsWith('.go')) setActiveLanguage('go');
+                else if (file.name.endsWith('.sh')) setActiveLanguage('shell');
                 else if (file.name.endsWith('.json')) setActiveLanguage('json');
                 else if (file.name.endsWith('.css')) setActiveLanguage('css');
                 else if (file.name.endsWith('.md')) setActiveLanguage('markdown');

@@ -12,7 +12,6 @@ export function ExtensionDetailsPane() {
     const [loading, setLoading] = useState(false);
     const [details, setDetails] = useState<ExtensionDetail | null>(null);
 
-    // Fetch full README details once open
     useEffect(() => {
         if (!activeExtensionDetail) return;
 
@@ -23,7 +22,6 @@ export function ExtensionDetailsPane() {
             .then((data) => {
                 if (!active) return;
 
-                // Merge the base summary from summary-card with the full metadata
                 setDetails({
                     ...activeExtensionDetail,
                     downloadCount: data.downloadCount ?? activeExtensionDetail.downloadCount ?? 0,
@@ -32,8 +30,6 @@ export function ExtensionDetailsPane() {
                     license: data.license,
                     homepage: data.homepage,
                     repository: data.repository,
-                    // OpenVSX puts the README inside the files object or we have to query it.
-                    // If it's pure markdown, we dump it into readmeContent.
                     readmeContent: data.description || 'No detailed README available.',
                 });
             })
@@ -47,7 +43,7 @@ export function ExtensionDetailsPane() {
             });
 
         return () => { active = false; };
-    }, [activeExtensionDetail?.publisher, activeExtensionDetail?.extension]);
+    }, [activeExtensionDetail?.publisher, activeExtensionDetail?.extension, addToast]);
 
     if (!activeExtensionDetail) return null;
 
@@ -66,18 +62,19 @@ export function ExtensionDetailsPane() {
         if (installed || loading) return;
         setLoading(true);
         try {
-            await extensionService.downloadExtension(publisher, extName, displayInfo.version);
+            const record = await extensionService.installWorkspaceExtension(publisher, extName, displayInfo.version);
             installPlugin({
-                publisher,
-                extension: extName,
-                version: displayInfo.version,
-                displayName: displayInfo.displayName,
-                description: displayInfo.description,
+                publisher: record.publisher,
+                extension: record.name,
+                version: record.version,
+                displayName: record.manifest?.displayName || displayInfo.displayName,
+                description: record.manifest?.description || displayInfo.description,
                 iconUrl: displayInfo.iconUrl,
             });
-            addToast(`✅ ${displayInfo.displayName} installed successfully!`, 'success', 4000);
-        } catch {
-            addToast(`Failed to install ${displayInfo.displayName}.`, 'error', 4000);
+            addToast(`Installed ${displayInfo.displayName} successfully!`, 'success', 4000);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            addToast(`Failed to install ${displayInfo.displayName}: ${message}`, 'error', 4000);
         } finally {
             setLoading(false);
         }
@@ -141,7 +138,6 @@ export function ExtensionDetailsPane() {
 
             <div className="flex-1 overflow-y-auto min-h-0 bg-[var(--bg-canvas)]">
                 <div className="max-w-4xl mx-auto p-8">
-                    {/* Tags and Links */}
                     {details && (
                         <div className="flex flex-wrap gap-4 mb-8">
                             {details.categories?.map(c => (
@@ -163,7 +159,6 @@ export function ExtensionDetailsPane() {
                         </div>
                     )}
 
-                    {/* Markdown rendering */}
                     <div className="prose prose-invert prose-orange max-w-none text-sm text-[var(--text-secondary)] mt-8 pb-12">
                         {details ? (
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>

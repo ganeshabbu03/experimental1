@@ -6,6 +6,8 @@
  */
 
 import { apiClient } from './apiClient';
+import { runtimeConfig } from '@/config/runtime';
+import { io } from 'socket.io-client';
 
 // ---------------------------------------------------------------------------
 // Types — shaped to match OpenVSX API response
@@ -53,6 +55,66 @@ export interface DownloadResult {
     path?: string;
     size_bytes?: number;
 }
+
+export interface WorkspaceExtensionRecord {
+    id: string;
+    publisher: string;
+    name: string;
+    version: string;
+    manifest?: {
+        displayName?: string;
+        description?: string;
+    };
+}
+
+interface WorkspaceExtensionResponse {
+    ok?: boolean;
+    error?: string;
+    requiresTrust?: boolean;
+    publisher?: string;
+    record?: WorkspaceExtensionRecord;
+}
+
+const connectWorkspaceSocket = async () => {
+    const socket = io(runtimeConfig.wsBaseUrl, {
+        transports: ['websocket', 'polling'],
+    });
+
+    await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+            socket.off('connect', onConnect);
+            socket.off('connect_error', onError);
+        };
+
+        const onConnect = () => {
+            cleanup();
+            resolve();
+        };
+
+        const onError = (error: Error) => {
+            cleanup();
+            reject(error);
+        };
+
+        socket.once('connect', onConnect);
+        socket.once('connect_error', onError);
+    });
+
+    return socket;
+};
+
+const emitWorkspaceExtensionEvent = async <T>(
+    event: string,
+    payload: Record<string, unknown>,
+): Promise<T> => {
+    const socket = await connectWorkspaceSocket();
+
+    try {
+        return await socket.timeout(30000).emitWithAck(event, payload) as T;
+    } finally {
+        socket.disconnect();
+    }
+};
 
 // ---------------------------------------------------------------------------
 // Service
@@ -122,5 +184,41 @@ export const extensionService = {
      */
     async uninstallExtension(publisher: string, extension: string): Promise<{ status: string }> {
         return apiClient.delete<{ status: string }>(`/plugins/uninstall/${publisher}/${extension}`);
+    },
+
+    async installWorkspaceExtension(
+        publisher: string,
+        extension: string,
+        version?: string,
+    ): Promise<WorkspaceExtensionRecord> {
+        const response = await emitWorkspaceExtensionEvent<WorkspaceExtensionResponse>(
+            'extensions.install',
+            {
+                publisher,
+                name: extension,
+                version,
+                trustPublisher: true,
+            },
+        );
+
+        if (!response?.ok || !response.record) {
+            throw new Error(response?.error || `Failed to install ${publisher}.${extension}`);
+        }
+
+        return response.record;
+    },
+
+    async uninstallWorkspaceExtension(
+        publisher: string,
+        extension: string,
+    ): Promise<void> {
+        const response = await emitWorkspaceExtensionEvent<WorkspaceExtensionResponse>(
+            'extensions.uninstall',
+            { extensionId: `${publisher}.${extension}` },
+        );
+
+        if (!response?.ok) {
+            throw new Error(response?.error || `Failed to uninstall ${publisher}.${extension}`);
+        }
     },
 };

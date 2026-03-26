@@ -4,12 +4,11 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { ExtensionManifest, ExtensionRecord } from './contracts';
 import { OpenVsxClientService } from './openvsx-client.service';
+import { resolveExtensionStorageRoot } from './extension-storage.util';
 
 @Injectable()
 export class VsixInstallerService {
     constructor(private readonly openVsxClient: OpenVsxClientService) { }
-
-    private extensionsRoot = path.resolve(process.cwd(), '..', 'backend', 'storage', 'plugins');
 
     private async extractArchive(vsixPath: string, dest: string): Promise<void> {
         fs.mkdirSync(dest, { recursive: true });
@@ -59,8 +58,9 @@ export class VsixInstallerService {
         if (!downloadUrl) throw new Error('No download URL in OpenVSX metadata');
 
         const extId = `${publisher}.${name}`;
-        const packageDir = path.join(this.extensionsRoot, 'packages');
-        const extractedBase = path.join(this.extensionsRoot, 'extracted');
+        const extensionsRoot = resolveExtensionStorageRoot();
+        const packageDir = path.join(extensionsRoot, 'packages');
+        const extractedBase = path.join(extensionsRoot, 'extracted');
         fs.mkdirSync(packageDir, { recursive: true });
         fs.mkdirSync(extractedBase, { recursive: true });
 

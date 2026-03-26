@@ -6,6 +6,7 @@ import { execFile } from 'child_process';
 import * as _module from 'module';
 import { createVscodeApi, registeredCommands, logRequireInterception, VscodeApiServices } from './vscode-api';
 import { ExtensionApiFrameworkService } from './extension-api-framework.service';
+import { resolveExtensionStorageRoot } from '../extensions/extension-storage.util';
 
 @Injectable()
 export class ExtensionHostService implements OnModuleInit {
@@ -19,6 +20,7 @@ export class ExtensionHostService implements OnModuleInit {
 
     private currentVscodeApi: any = null;
     private wsEmitter: ((event: string, payload: any) => void) | null = null;
+    private workspaceRoot: string | null = null;
 
     constructor(private extensionApiFramework: ExtensionApiFrameworkService) { }
 
@@ -47,8 +49,13 @@ export class ExtensionHostService implements OnModuleInit {
         this.buildVscodeApi();
     }
 
+    public setWorkspaceRoot(workspaceRoot: string | null) {
+        this.workspaceRoot = workspaceRoot;
+        this.buildVscodeApi();
+    }
+
     private buildVscodeApi() {
-        const cwd = process.env.HOME || process.env.USERPROFILE || process.cwd();
+        const cwd = this.workspaceRoot || process.env.HOME || process.env.USERPROFILE || process.cwd();
         const configPath = path.resolve(process.cwd(), 'storage', 'config', 'settings.json');
 
         const services: VscodeApiServices = {
@@ -121,7 +128,7 @@ export class ExtensionHostService implements OnModuleInit {
     }
 
     private getStorageDir(): string {
-        return path.resolve(process.cwd(), '../backend/storage/plugins/extracted');
+        return path.join(resolveExtensionStorageRoot(), 'extracted');
     }
 
     private computeStorageSnapshot(storageDir: string): string {

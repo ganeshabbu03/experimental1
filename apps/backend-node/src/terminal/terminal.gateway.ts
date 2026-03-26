@@ -45,6 +45,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     private ptyModule: any | null = null;
     private terminals: Map<string, any> = new Map();
+    private workspaceRoots: Map<string, string> = new Map();
 
     constructor(private extensionHostService: ExtensionHostService) {
         this.ptyModule = this.loadNodePty();
@@ -64,6 +65,22 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
         }
     }
 
+    private sanitizeWorkspaceSegment(value: string): string {
+        return value.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'workspace';
+    }
+
+    private resolveWorkspaceRoot(client: Socket): string {
+        const auth = (client.handshake?.auth || {}) as { workspaceId?: string; projectName?: string };
+        const workspaceId = this.sanitizeWorkspaceSegment(String(auth.workspaceId || client.id));
+        const projectName = auth.projectName
+            ? this.sanitizeWorkspaceSegment(String(auth.projectName))
+            : 'project';
+        const workspaceRoot = path.resolve(process.cwd(), 'storage', 'workspaces', workspaceId, projectName);
+
+        fs.mkdirSync(workspaceRoot, { recursive: true });
+        return workspaceRoot;
+    }
+
     handleConnection(client: Socket) {
         console.log(`[Terminal] Client connected: ${client.id}`);
         const pty = this.ptyModule || this.loadNodePty();
@@ -72,10 +89,14 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
             return;
         }
 
+        const workspaceRoot = this.resolveWorkspaceRoot(client);
+        this.workspaceRoots.set(client.id, workspaceRoot);
+
         // Wire real WebSocket emitter so extensions can push events to this client
         this.extensionHostService.setWebSocketEmitter((event: string, payload: any) => {
             client.emit(event, payload);
         });
+        this.extensionHostService.setWorkspaceRoot(workspaceRoot);
 
         const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
 
@@ -83,7 +104,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
             name: 'xterm-color',
             cols: 80,
             rows: 30,
-            cwd: process.env.HOME || process.env.USERPROFILE || process.cwd(),
+            cwd: workspaceRoot,
             env: this.extensionHostService.getTerminalEnv(process.env as any) as any,
         });
 
@@ -107,6 +128,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
             ptyProcess.kill();
             this.terminals.delete(client.id);
         }
+        this.workspaceRoots.delete(client.id);
     }
 
     @SubscribeMessage('terminal.input')
@@ -144,7 +166,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
         if (!ptyProcess) return;
 
         try {
-            const cwd = process.env.HOME || process.env.USERPROFILE || process.cwd();
+            const cwd = this.workspaceRoots.get(client.id) || this.resolveWorkspaceRoot(client);
             const requestedPath = String(payload.filename || '').replace(/\\/g, '/');
             const normalizedRelativePath = path.posix.normalize(requestedPath);
             if (!normalizedRelativePath || normalizedRelativePath.startsWith('..') || path.isAbsolute(requestedPath)) {
@@ -174,7 +196,15 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
                 return;
             }
 
-            if (ext === '.py') command = `python "${filePath}"`;
+            if (ext === '.py') {
+                const python = this.extensionHostService.resolveExecutable('python')
+                    || this.extensionHostService.resolveExecutable('python3');
+                if (!python) {
+                    ptyProcess.write(`\necho "Python runtime not found (python/python3). Install Python and ensure PATH is set."\r`);
+                    return;
+                }
+                command = buildExecCommand(python, `"${filePath}"`);
+            }
             else if (ext === '.js') command = `node "${filePath}"`;
             else if (ext === '.ts') command = `npx ts-node "${filePath}"`;
             else if (ext === '.sh') command = `bash "${filePath}"`;

@@ -3,7 +3,7 @@
  * ------------------
  * Display card for a single OpenVSX extension.
  * Shows publisher, name, description, version, download count.
- * Install button triggers backend download + updates the plugin store.
+ * Install button triggers workspace extension install + updates the plugin store.
  */
 
 import { useState } from 'react';
@@ -40,18 +40,19 @@ export function ExtensionCard(props: ExtensionCardProps) {
         if (installed || loading) return;
         setLoading(true);
         try {
-            await extensionService.downloadExtension(publisher, extName, extension.version);
+            const record = await extensionService.installWorkspaceExtension(publisher, extName, extension.version);
             installPlugin({
-                publisher,
-                extension: extName,
-                version: extension.version,
-                displayName: extension.displayName,
-                description: extension.description,
+                publisher: record.publisher,
+                extension: record.name,
+                version: record.version,
+                displayName: record.manifest?.displayName || extension.displayName,
+                description: record.manifest?.description || extension.description,
                 iconUrl: extension.iconUrl,
             });
-            addToast(`✅ ${extension.displayName} installed successfully!`, 'success', 4000);
-        } catch {
-            addToast(`Failed to install ${extension.displayName}. Please try again.`, 'error', 4000);
+            addToast(`Installed ${extension.displayName} successfully!`, 'success', 4000);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            addToast(`Failed to install ${extension.displayName}: ${message}`, 'error', 4000);
         } finally {
             setLoading(false);
         }
@@ -64,7 +65,6 @@ export function ExtensionCard(props: ExtensionCardProps) {
 
     return (
         <div className="ext-card cursor-pointer hover:border-orange-500 transition-colors" onClick={props.onClick}>
-            {/* Icon + version row */}
             <div className="ext-card__header">
                 <div className="ext-card__icon">
                     {extension.iconUrl && !imgError ? (
@@ -90,16 +90,13 @@ export function ExtensionCard(props: ExtensionCardProps) {
                 </div>
             </div>
 
-            {/* Name + publisher */}
             <h3 className="ext-card__name">{extension.displayName || extName}</h3>
             <p className="ext-card__publisher">
                 by <span>{extension.publishedBy?.loginName || publisher}</span>
             </p>
 
-            {/* Description */}
             <p className="ext-card__description">{extension.description || 'No description available.'}</p>
 
-            {/* Footer: downloads + action */}
             <div className="ext-card__footer">
                 <div className="ext-card__stats">
                     <Download size={12} />
@@ -132,7 +129,7 @@ export function ExtensionCard(props: ExtensionCardProps) {
                         ) : (
                             <Download size={13} />
                         )}
-                        {loading ? 'Installing…' : 'Install'}
+                        {loading ? 'Installing...' : 'Install'}
                     </button>
                 )}
             </div>

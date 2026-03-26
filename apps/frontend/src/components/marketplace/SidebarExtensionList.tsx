@@ -123,20 +123,21 @@ export function SidebarExtensionList() {
                             installed={isInstalled(ext.namespace, ext.name)}
                             onInstall={async () => {
                                 try {
-                                    await extensionService.downloadExtension(ext.namespace, ext.name, ext.version);
+                                    const record = await extensionService.installWorkspaceExtension(ext.namespace, ext.name, ext.version);
                                     installPlugin({
-                                        publisher: ext.namespace,
-                                        extension: ext.name,
-                                        version: ext.version,
-                                        displayName: ext.displayName,
-                                        description: ext.description,
+                                        publisher: record.publisher,
+                                        extension: record.name,
+                                        version: record.version,
+                                        displayName: record.manifest?.displayName || ext.displayName,
+                                        description: record.manifest?.description || ext.description,
                                         iconUrl: ext.iconUrl,
                                     });
                                     // Try to apply it as a theme right away
-                                    themeService.applyPluginTheme(ext.namespace, ext.name, ext.version);
+                                    themeService.applyPluginTheme(record.publisher, record.name, record.version);
                                     addToast(`Installed ${ext.displayName}`, 'success', 3000);
-                                } catch (e) {
-                                    addToast(`Failed to install ${ext.displayName}`, 'error', 3000);
+                                } catch (error) {
+                                    const message = error instanceof Error ? error.message : 'Unknown error';
+                                    addToast(`Failed to install ${ext.displayName}: ${message}`, 'error', 4000);
                                 }
                             }}
                             onUninstall={() => {

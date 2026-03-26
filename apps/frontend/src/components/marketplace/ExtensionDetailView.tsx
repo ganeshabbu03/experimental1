@@ -89,19 +89,20 @@ export function ExtensionDetailView() {
         } else {
             setInstalling(true);
             try {
-                await extensionService.downloadExtension(publisher, extName, version);
+                const record = await extensionService.installWorkspaceExtension(publisher, extName, version);
                 installPlugin({
-                    publisher,
-                    extension: extName,
-                    version: version,
-                    displayName,
-                    description,
+                    publisher: record.publisher,
+                    extension: record.name,
+                    version: record.version,
+                    displayName: record.manifest?.displayName || displayName,
+                    description: record.manifest?.description || description,
                     iconUrl,
                 });
-                themeService.applyPluginTheme(publisher, extName, version);
+                themeService.applyPluginTheme(record.publisher, record.name, record.version);
                 addToast(`Installed ${displayName}`, 'success');
-            } catch (e) {
-                addToast(`Failed to install ${displayName}`, 'error');
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                addToast(`Failed to install ${displayName}: ${message}`, 'error');
             } finally {
                 setInstalling(false);
             }

@@ -3,13 +3,17 @@ import { Plus, ChevronDown, MoreHorizontal, Maximize, Minimize2, X, TerminalSqua
 import { cn } from '@/utils/cn';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import { useTerminalStore } from '@/stores/useTerminalStore';
+import { useFileStore } from '@/stores/useFileStore';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
+import { useParams } from 'react-router-dom';
 import 'xterm/css/xterm.css';
 
 export default function Terminal() {
     const [activeTab, setActiveTab] = useState<'Problems' | 'Output' | 'Debug Console' | 'Terminal' | 'Ports'>('Terminal');
     const { setTerminalOpen, toggleTerminalMaximized, isTerminalMaximized } = useLayoutStore();
+    const { projectId } = useParams();
+    const { projectName } = useFileStore();
     const {
         sessions,
         activeSessionId,
@@ -29,9 +33,9 @@ export default function Terminal() {
 
     // Initialize Store Connection
     useEffect(() => {
-        connect();
+        connect({ workspaceId: projectId, projectName });
         return () => disconnect();
-    }, []);
+    }, [connect, disconnect, projectId, projectName]);
 
     // Initialize XTerm
     useEffect(() => {
