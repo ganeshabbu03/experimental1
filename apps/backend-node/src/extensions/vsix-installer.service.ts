@@ -10,27 +10,48 @@ import { resolveExtensionStorageRoot } from './extension-storage.util';
 export class VsixInstallerService {
     constructor(private readonly openVsxClient: OpenVsxClientService) { }
 
+    private runCommand(command: string, args: string[], label: string): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            const p = spawn(command, args, { stdio: 'ignore' });
+            p.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`${label} failed (${code})`)));
+            p.on('error', reject);
+        });
+    }
+
+    private async extractWithPython(vsixPath: string, dest: string): Promise<void> {
+        const candidates = ['python3', 'python'];
+        let lastError: unknown = null;
+
+        for (const candidate of candidates) {
+            try {
+                await this.runCommand(candidate, ['-m', 'zipfile', '-e', vsixPath, dest], `${candidate} zipfile`);
+                return;
+            } catch (error) {
+                lastError = error;
+                if (!(error instanceof Error) || !error.message.includes('ENOENT')) {
+                    throw error;
+                }
+            }
+        }
+
+        throw lastError instanceof Error
+            ? lastError
+            : new Error('No Python runtime available to extract VSIX');
+    }
+
     private async extractArchive(vsixPath: string, dest: string): Promise<void> {
         fs.mkdirSync(dest, { recursive: true });
 
         if (process.platform === 'win32') {
-            await new Promise<void>((resolve, reject) => {
-                const p = spawn('powershell.exe', [
-                    '-NoProfile',
-                    '-Command',
-                    `Expand-Archive -LiteralPath '${vsixPath.replace(/'/g, "''")}' -DestinationPath '${dest.replace(/'/g, "''")}' -Force`,
-                ], { stdio: 'ignore' });
-                p.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`Expand-Archive failed (${code})`)));
-                p.on('error', reject);
-            });
+            await this.runCommand('powershell.exe', [
+                '-NoProfile',
+                '-Command',
+                `Expand-Archive -LiteralPath '${vsixPath.replace(/'/g, "''")}' -DestinationPath '${dest.replace(/'/g, "''")}' -Force`,
+            ], 'Expand-Archive');
             return;
         }
 
-        await new Promise<void>((resolve, reject) => {
-            const p = spawn('unzip', ['-o', vsixPath, '-d', dest], { stdio: 'ignore' });
-            p.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`unzip failed (${code})`)));
-            p.on('error', reject);
-        });
+        await this.extractWithPython(vsixPath, dest);
     }
 
     private loadManifest(extractedDir: string): { manifest: ExtensionManifest; manifestPath: string } {

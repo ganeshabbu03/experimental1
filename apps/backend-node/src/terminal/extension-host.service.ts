@@ -376,6 +376,7 @@ export class ExtensionHostService implements OnModuleInit {
 
         this.reloadPromise = (async () => {
             const storageDir = this.getStorageDir();
+            fs.mkdirSync(storageDir, { recursive: true });
             const snapshot = this.computeStorageSnapshot(storageDir);
 
             if (!force && snapshot === this.lastStorageSnapshot) {
@@ -384,14 +385,6 @@ export class ExtensionHostService implements OnModuleInit {
 
             this.extensions.clear();
             registeredCommands.clear();
-
-            if (!fs.existsSync(storageDir)) {
-                this.runtimePathAdditions = this.computeRuntimePathAdditions();
-                this.applyRuntimePathAdditions(this.runtimePathAdditions);
-                this.lastStorageSnapshot = snapshot;
-                console.warn(`[ExtensionHost] Storage directory not found at ${storageDir}`);
-                return;
-            }
 
             const entries = fs.readdirSync(storageDir, { withFileTypes: true });
 

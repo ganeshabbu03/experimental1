@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import String, cast
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.project import Project
@@ -17,6 +17,31 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def _file_project_filter(project_id: int):
+    # Some older deployed databases store files.project_id as text instead of integer.
+    return cast(File.project_id, String) == str(project_id)
+
+
+def _file_parent_filter(parent_id: int | None):
+    if parent_id is None:
+        return File.parent_id.is_(None)
+    return cast(File.parent_id, String) == str(parent_id)
+
+
+def _serialize_file(file: File) -> FileResponse:
+    return FileResponse(
+        id=int(file.id),
+        project_id=int(file.project_id),
+        parent_id=int(file.parent_id) if file.parent_id is not None else None,
+        name=file.name,
+        file_type=file.file_type,
+        content=file.content,
+        is_active=file.is_active,
+        created_at=file.created_at.isoformat(),
+        updated_at=file.updated_at.isoformat()
+    )
 
 # ==================== PROJECTS ====================
 
@@ -170,10 +195,10 @@ def create_file(
         raise HTTPException(status_code=404, detail="Project not found")
     
     # Verify parent file exists if provided
-    if data.parent_id:
+    if data.parent_id is not None:
         parent = db.query(File).filter(
             File.id == data.parent_id,
-            File.project_id == project_id
+            _file_project_filter(project_id)
         ).first()
         
         if not parent:
@@ -192,17 +217,7 @@ def create_file(
     db.commit()
     db.refresh(file)
     
-    return FileResponse(
-        id=file.id,
-        project_id=file.project_id,
-        parent_id=file.parent_id,
-        name=file.name,
-        file_type=file.file_type,
-        content=file.content,
-        is_active=file.is_active,
-        created_at=file.created_at.isoformat(),
-        updated_at=file.updated_at.isoformat()
-    )
+    return _serialize_file(file)
 
 @router.get("/{project_id}/files", response_model=list[FileResponse])
 def list_files(
@@ -220,24 +235,11 @@ def list_files(
         raise HTTPException(status_code=404, detail="Project not found")
     
     files = db.query(File).filter(
-        File.project_id == project_id,
+        _file_project_filter(project_id),
         File.is_active == True
     ).all()
     
-    return [
-        FileResponse(
-            id=f.id,
-            project_id=f.project_id,
-            parent_id=f.parent_id,
-            name=f.name,
-            file_type=f.file_type,
-            content=f.content,
-            is_active=f.is_active,
-            created_at=f.created_at.isoformat(),
-            updated_at=f.updated_at.isoformat()
-        )
-        for f in files
-    ]
+    return [_serialize_file(f) for f in files]
 
 @router.get("/{project_id}/files/tree", response_model=list[FileTreeResponse])
 def get_file_tree(
@@ -256,8 +258,8 @@ def get_file_tree(
     
     def build_tree(parent_id=None):
         files = db.query(File).filter(
-            File.project_id == project_id,
-            File.parent_id == parent_id,
+            _file_project_filter(project_id),
+            _file_parent_filter(parent_id),
             File.is_active == True
         ).all()
         
@@ -293,23 +295,13 @@ def get_file(
     
     file = db.query(File).filter(
         File.id == file_id,
-        File.project_id == project_id
+        _file_project_filter(project_id)
     ).first()
     
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     
-    return FileResponse(
-        id=file.id,
-        project_id=file.project_id,
-        parent_id=file.parent_id,
-        name=file.name,
-        file_type=file.file_type,
-        content=file.content,
-        is_active=file.is_active,
-        created_at=file.created_at.isoformat(),
-        updated_at=file.updated_at.isoformat()
-    )
+    return _serialize_file(file)
 
 @router.put("/{project_id}/files/{file_id}", response_model=FileResponse)
 def update_file(
@@ -330,7 +322,7 @@ def update_file(
     
     file = db.query(File).filter(
         File.id == file_id,
-        File.project_id == project_id
+        _file_project_filter(project_id)
     ).first()
     
     if not file:
@@ -344,17 +336,7 @@ def update_file(
     db.commit()
     db.refresh(file)
     
-    return FileResponse(
-        id=file.id,
-        project_id=file.project_id,
-        parent_id=file.parent_id,
-        name=file.name,
-        file_type=file.file_type,
-        content=file.content,
-        is_active=file.is_active,
-        created_at=file.created_at.isoformat(),
-        updated_at=file.updated_at.isoformat()
-    )
+    return _serialize_file(file)
 
 @router.delete("/{project_id}/files/{file_id}")
 def delete_file(
@@ -374,18 +356,22 @@ def delete_file(
     
     file = db.query(File).filter(
         File.id == file_id,
-        File.project_id == project_id
+        _file_project_filter(project_id)
     ).first()
     
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
     
     # Soft delete file and all children
-    def delete_recursive(file_id):
-        children = db.query(File).filter(File.parent_id == file_id).all()
+    def delete_recursive(current_file_id):
+        children = db.query(File).filter(
+            _file_project_filter(project_id),
+            _file_parent_filter(current_file_id),
+            File.is_active == True
+        ).all()
         for child in children:
             delete_recursive(child.id)
-        file = db.query(File).filter(File.id == file_id).first()
+        file = db.query(File).filter(File.id == current_file_id).first()
         if file:
             file.is_active = False
     
