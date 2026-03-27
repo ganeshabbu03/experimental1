@@ -426,9 +426,16 @@ export function createVscodeApi(services: VscodeApiServices) {
     const onDidCloseTextDocumentEmitter = new EventEmitter<any>(); 
     const onDidChangeTextDocumentEmitter = new EventEmitter<any>();
     const onDidSaveTextDocumentEmitter = new EventEmitter<any>();
+    const onDidOpenNotebookDocumentEmitter = new EventEmitter<any>();
+    const onDidCloseNotebookDocumentEmitter = new EventEmitter<any>();
+    const onDidChangeNotebookDocumentEmitter = new EventEmitter<any>();
+    const onDidSaveNotebookDocumentEmitter = new EventEmitter<any>();
     const onDidChangeActiveTextEditorEmitter = new EventEmitter<any>();
+    const onDidChangeActiveNotebookEditorEmitter = new EventEmitter<any>();
+    const onDidChangeVisibleNotebookEditorsEmitter = new EventEmitter<any>();
     const onDidCloseTerminalEmitter = new EventEmitter<any>();
     const onDidChangeActiveColorThemeEmitter = new EventEmitter<any>();
+    const notebookDocuments: any[] = [];
 
     const baseApi: any = {
         // ─── Data Types ──────────────────────────────────────────
@@ -484,6 +491,8 @@ export function createVscodeApi(services: VscodeApiServices) {
         InlayHintKind: { Type: 1, Parameter: 2 },
         LanguageStatusSeverity: { Information: 0, Warning: 1, Error: 2 },
         ExtensionKind: { UI: 1, Workspace: 2 },
+        NotebookCellKind: { Markup: 1, Code: 2 },
+        NotebookCellExecutionState: { Pending: 1, Executing: 2, Idle: 3 },
         TaskScope: { Global: 1, Workspace: 2 },
         TaskRevealKind: { Always: 1, Silent: 2, Never: 3 },
         TaskPanelKind: { Shared: 1, Dedicated: 2, New: 3 },
@@ -515,8 +524,12 @@ export function createVscodeApi(services: VscodeApiServices) {
         window: {
             activeTextEditor: undefined,
             visibleTextEditors: [],
+            activeNotebookEditor: undefined,
+            visibleNotebookEditors: [],
             onDidChangeActiveTextEditor: onDidChangeActiveTextEditorEmitter.event,
             onDidChangeVisibleTextEditors: new EventEmitter<any>().event,
+            onDidChangeActiveNotebookEditor: onDidChangeActiveNotebookEditorEmitter.event,
+            onDidChangeVisibleNotebookEditors: onDidChangeVisibleNotebookEditorsEmitter.event,
             onDidCloseTerminal: onDidCloseTerminalEmitter.event,
             onDidChangeTextEditorSelection: new EventEmitter<any>().event,
             onDidChangeTextEditorVisibleRanges: new EventEmitter<any>().event,
@@ -792,6 +805,11 @@ export function createVscodeApi(services: VscodeApiServices) {
             onDidCloseTextDocument: onDidCloseTextDocumentEmitter.event,
             onDidChangeTextDocument: onDidChangeTextDocumentEmitter.event,
             onDidSaveTextDocument: onDidSaveTextDocumentEmitter.event,
+            notebookDocuments,
+            onDidOpenNotebookDocument: onDidOpenNotebookDocumentEmitter.event,
+            onDidCloseNotebookDocument: onDidCloseNotebookDocumentEmitter.event,
+            onDidChangeNotebookDocument: onDidChangeNotebookDocumentEmitter.event,
+            onDidSaveNotebookDocument: onDidSaveNotebookDocumentEmitter.event,
 
             // REAL: Reads/writes configuration from storage file
             getConfiguration: (section?: string) => {
@@ -932,6 +950,36 @@ export function createVscodeApi(services: VscodeApiServices) {
                 } catch { }
                 return results;
             },
+            registerNotebookSerializer: (_notebookType: string, _serializer: any, _options?: any) => {
+                return { dispose: () => { } };
+            },
+            openNotebookDocument: async (uriOrType: any, maybeUri?: any) => {
+                const uriCandidate = maybeUri ?? uriOrType;
+                const notebookUri = typeof uriCandidate === 'string'
+                    ? (uriCandidate.includes(':') ? UriImpl.parse(uriCandidate) : UriImpl.file(uriCandidate))
+                    : (uriCandidate?.uri || uriCandidate || UriImpl.file(path.join(services.workspaceRoot || process.cwd(), 'untitled.ipynb')));
+
+                const notebookType = typeof uriOrType === 'string' && !uriOrType.includes(':')
+                    ? uriOrType
+                    : 'jupyter-notebook';
+
+                const notebookDoc: any = {
+                    uri: notebookUri,
+                    notebookType,
+                    version: 1,
+                    isDirty: false,
+                    isClosed: false,
+                    isUntitled: false,
+                    metadata: {},
+                    cellCount: 0,
+                    getCells: () => [],
+                    save: async () => true,
+                };
+
+                notebookDocuments.push(notebookDoc);
+                onDidOpenNotebookDocumentEmitter.fire(notebookDoc);
+                return notebookDoc;
+            },
 
             openTextDocument: async (uriOrPath: any) => {
                 const p = typeof uriOrPath === 'string' ? uriOrPath : uriOrPath?.fsPath || String(uriOrPath);
@@ -964,6 +1012,36 @@ export function createVscodeApi(services: VscodeApiServices) {
                     save: async () => true,
                 };
             },
+        },
+        notebooks: {
+            createNotebookController: (id: string, notebookType: string, label: string) => {
+                const controller: any = {
+                    id,
+                    notebookType,
+                    label,
+                    description: '',
+                    detail: '',
+                    supportedLanguages: [],
+                    executeHandler: undefined as any,
+                    interruptHandler: undefined as any,
+                    createNotebookCellExecution: (_cell: any) => ({
+                        token: { isCancellationRequested: false, onCancellationRequested: new EventEmitter<any>().event },
+                        start: (_startTime?: number) => { },
+                        end: (_success?: boolean, _endTime?: number) => { },
+                        clearOutput: async () => { },
+                        appendOutput: async (_output: any) => { },
+                        replaceOutput: async (_output: any) => { },
+                    }),
+                    dispose: () => { },
+                };
+                return controller;
+            },
+            registerNotebookCellStatusBarItemProvider: (_notebookType: any, _provider: any) => ({ dispose: () => { } }),
+            createRendererMessaging: (_rendererId: string) => ({
+                onDidReceiveMessage: new EventEmitter<any>().event,
+                postMessage: async (_message: any) => true,
+                dispose: () => { },
+            }),
         },
 
         // ─── REAL: Languages (registers in ExtensionApiFramework) ─
@@ -1130,3 +1208,4 @@ export function logRequireInterception() {
         requireLogged = true;
     }
 }
+
