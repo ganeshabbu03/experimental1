@@ -6,7 +6,8 @@ from app.database import Base
 class File(Base):
     __tablename__ = "files"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     parent_id = Column(Integer, ForeignKey("files.id"), nullable=True)
     name = Column(String(255), nullable=False)
@@ -18,5 +19,6 @@ class File(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
+    user = relationship("User")
     project = relationship("Project", back_populates="files")
     parent = relationship("File", backref="children", remote_side=[id], foreign_keys=[parent_id])

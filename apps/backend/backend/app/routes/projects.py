@@ -189,6 +189,7 @@ def create_file(
             raise HTTPException(status_code=404, detail="Parent file not found")
     
     file = File(
+        user_id=current_user.id,
         project_id=project_id,
         parent_id=data.parent_id,
         name=data.name,
@@ -203,6 +204,7 @@ def create_file(
     
     return FileResponse(
         id=file.id,
+        user_id=file.user_id,
         project_id=file.project_id,
         parent_id=file.parent_id,
         name=file.name,
@@ -236,6 +238,7 @@ def list_files(
     return [
         FileResponse(
             id=f.id,
+            user_id=f.user_id,
             project_id=f.project_id,
             parent_id=f.parent_id,
             name=f.name,
@@ -316,6 +319,7 @@ def get_file(
     
     return FileResponse(
         id=file.id,
+        user_id=file.user_id,
         project_id=file.project_id,
         parent_id=file.parent_id,
         name=file.name,
@@ -367,6 +371,7 @@ def update_file(
     
     return FileResponse(
         id=file.id,
+        user_id=file.user_id,
         project_id=file.project_id,
         parent_id=file.parent_id,
         name=file.name,
