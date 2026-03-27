@@ -1146,6 +1146,18 @@ export function createVscodeApi(services: VscodeApiServices) {
             onDidChange: new EventEmitter<any>().event,
         },
 
+        // ─── Localization (l10n) ─────────────────────────────────
+        l10n: {
+            bundle: undefined,
+            uri: undefined,
+            t: (...args: any[]) => {
+                // Simple pass-through: return the message string as-is
+                if (typeof args[0] === 'string') return args[0];
+                if (typeof args[0] === 'object' && args[0].message) return args[0].message;
+                return String(args[0] ?? '');
+            },
+        },
+
         // ─── Debug (stub — no debug adapter yet) ─────────────────
         debug: {
             activeDebugSession: undefined,
