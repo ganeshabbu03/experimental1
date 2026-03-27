@@ -284,3 +284,17 @@ body {
 .driver-popover.deexen-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
   border-bottom-color: var(--bg-surface);
 }
+
+@keyframes mkt-progress-sheen {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(320%);
+  }
+}
+
+.mkt-progress-sheen {
+  animation: mkt-progress-sheen 1.65s linear infinite;
+}

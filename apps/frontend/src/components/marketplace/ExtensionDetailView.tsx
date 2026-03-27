@@ -3,24 +3,37 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Download, Check, Star, X, Loader2, Box, ShieldCheck } from 'lucide-react';
 import { extensionService, type OpenVSXExtension } from '@/services/extensionService';
-import { usePluginStore } from '@/stores/usePluginStore';
+import { getExtensionInstallKey, usePluginStore } from '@/stores/usePluginStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { themeService } from '@/services/themeService';
+import { ExtensionInstallProgressBar } from './ExtensionInstallProgress';
 
 export function ExtensionDetailView() {
-    const { activeExtensionDetail, setActiveExtensionDetail, installPlugin, uninstallPlugin, isInstalled } = usePluginStore();
+    const {
+        activeExtensionDetail,
+        setActiveExtensionDetail,
+        installPlugin,
+        uninstallPlugin,
+        isInstalled,
+        setInstallProgress,
+        clearInstallProgress,
+    } = usePluginStore();
     const { addToast } = useToastStore();
     const [fullDetail, setFullDetail] = useState<OpenVSXExtension | null>(null);
     const [readme, setReadme] = useState<string>('');
-    const [loading, setLoading] = useState(false);
-    const [installing, setInstalling] = useState(false);
+    const [detailsLoading, setDetailsLoading] = useState(false);
     const [imgError, setImgError] = useState(false);
+    const installProgress = usePluginStore((state) =>
+        activeExtensionDetail
+            ? state.installProgress[getExtensionInstallKey(activeExtensionDetail.publisher, activeExtensionDetail.extension)]
+            : undefined,
+    );
 
     useEffect(() => {
         if (!activeExtensionDetail) return;
 
         let isMounted = true;
-        setLoading(true);
+        setDetailsLoading(true);
         setImgError(false);
         setReadme('');
 
@@ -60,7 +73,7 @@ export function ExtensionDetailView() {
                     setReadme('*Failed to load details. The extension may have been unpublished.*');
                 }
             } finally {
-                if (isMounted) setLoading(false);
+                if (isMounted) setDetailsLoading(false);
             }
         };
 
@@ -74,6 +87,7 @@ export function ExtensionDetailView() {
     const publisher = activeExtensionDetail.publisher;
     const extName = activeExtensionDetail.extension;
     const installed = isInstalled(publisher, extName);
+    const installInFlight = Boolean(installProgress && installProgress.stage !== 'error');
 
     // Fallbacks since activeExtensionDetail only has partial info intially
     const displayName = fullDetail?.displayName || activeExtensionDetail.displayName || extName;
@@ -84,12 +98,25 @@ export function ExtensionDetailView() {
     const handleAction = async () => {
         if (installed) {
             uninstallPlugin(publisher, extName);
+            clearInstallProgress(publisher, extName);
             themeService.resetTheme();
             addToast(`${displayName} uninstalled.`, 'info');
         } else {
-            setInstalling(true);
+            if (installInFlight) return;
+
+            setInstallProgress(publisher, extName, {
+                stage: 'queued',
+                progress: 0,
+                message: 'Preparing secure download...',
+            });
+
             try {
-                const record = await extensionService.installWorkspaceExtension(publisher, extName, version);
+                const record = await extensionService.installExtensionWithProgress(
+                    publisher,
+                    extName,
+                    version,
+                    (event) => setInstallProgress(publisher, extName, event),
+                );
                 installPlugin({
                     publisher: record.publisher,
                     extension: record.name,
@@ -100,11 +127,16 @@ export function ExtensionDetailView() {
                 });
                 themeService.applyPluginTheme(record.publisher, record.name, record.version);
                 addToast(`Installed ${displayName}`, 'success');
+                window.setTimeout(() => clearInstallProgress(publisher, extName), 1200);
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unknown error';
+                setInstallProgress(publisher, extName, {
+                    stage: 'error',
+                    progress: 100,
+                    message,
+                });
                 addToast(`Failed to install ${displayName}: ${message}`, 'error');
-            } finally {
-                setInstalling(false);
+                window.setTimeout(() => clearInstallProgress(publisher, extName), 3600);
             }
         }
     };
@@ -184,17 +216,17 @@ export function ExtensionDetailView() {
                             <div className="flex gap-3">
                                 <button
                                     onClick={handleAction}
-                                    disabled={installing}
+                                    disabled={installInFlight}
                                     className={`
                                         flex items-center justify-center gap-2 px-5 py-1.5 rounded text-sm font-semibold transition-colors
                                         ${installed
                                             ? "bg-[var(--bg-surface-hover)] text-[var(--text-primary)] hover:bg-red-500/10 hover:text-red-500 border border-[var(--border-default)]"
                                             : "bg-[#0E639C] hover:bg-[#1177BB] text-white border border-transparent shadow-sm"
                                         }
-                                        ${installing ? "opacity-70 cursor-not-allowed" : ""}
+                                        ${installInFlight ? "opacity-70 cursor-not-allowed" : ""}
                                     `}
                                 >
-                                    {installing ? (
+                                    {installInFlight ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : installed ? (
                                         <>
@@ -213,6 +245,12 @@ export function ExtensionDetailView() {
                                     </div>
                                 )}
                             </div>
+
+                            {installProgress && (
+                                <div className="mt-4 max-w-xl">
+                                    <ExtensionInstallProgressBar progress={installProgress} />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -248,7 +286,7 @@ export function ExtensionDetailView() {
 
                     {/* Markdown Content */}
                     <div className="mt-8 prose prose-sm prose-invert max-w-none text-[var(--text-primary)]">
-                        {loading ? (
+                        {detailsLoading ? (
                             <div className="flex items-center gap-3 text-[var(--text-secondary)]">
                                 <Loader2 className="w-5 h-5 animate-spin" />
                                 <span className="text-sm">Loading README...</span>

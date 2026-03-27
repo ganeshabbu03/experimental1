@@ -21,6 +21,15 @@ class AnalyzeRequest(BaseModel):
     language: str | None = None
 
 
+MODE_ALIASES = {
+    "enhancement": "enhance",
+    "improve": "enhance",
+    "expansion": "expand",
+    "strict teaching": "teaching",
+    "strict_teaching": "teaching",
+}
+
+
 class AnalyzeResponse(BaseModel):
     response: str
     mode: str
@@ -45,7 +54,41 @@ def _detect_language(explicit_language: str | None, code: str) -> str:
     return "plaintext"
 
 
+def _normalize_mode(mode: str) -> str:
+    normalized = mode.strip().lower()
+    return MODE_ALIASES.get(normalized, normalized)
+
+
+def _looks_like_code(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+
+    return bool(
+        "\n" in stripped
+        or re.search(
+            r"[{}();]|=>|\b(const|let|var|function|class|def|import|export|return|if|else|for|while|interface|type|async|await|SELECT|INSERT|UPDATE|DELETE)\b",
+            stripped,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _clean_context(context: str | None) -> str | None:
+    if not context:
+        return None
+
+    cleaned = context.strip()
+    if not cleaned or cleaned == "Deexen IDE":
+        return None
+
+    return cleaned
+
+
 def _diagnostics_for(code: str) -> list[str]:
+    if not code.strip():
+        return []
+
     checks: list[tuple[str, str]] = [
         (r"\bconsole\.log\(", "Avoid committing debug logs to production code."),
         (r"\bany\b", "Using 'any' reduces type safety."),
@@ -63,54 +106,88 @@ def _diagnostics_for(code: str) -> list[str]:
     return findings[:10]
 
 
-def _build_response(mode: str, language: str, diagnostics: list[str]) -> str:
+def _summarize_code(code: str, language: str) -> list[str]:
+    if not code.strip():
+        return []
+
+    non_empty_lines = [line for line in code.splitlines() if line.strip()]
+    summary = [f"- Reviewed {len(non_empty_lines)} non-empty lines of {language}."]
+
+    if re.search(r"\b(function|def|class|interface)\b", code):
+        summary.append("- The file contains reusable units such as functions, classes, or interfaces.")
+    if re.search(r"\btry\b|\bcatch\b", code):
+        summary.append("- There is explicit error-handling logic present.")
+    if re.search(r"\bfetch\b|\baxios\b|\brequests\b|\bhttp\b", code, re.IGNORECASE):
+        summary.append("- The code appears to perform I/O or network work.")
+
+    return summary
+
+
+def _build_response(
+    mode: str,
+    language: str,
+    diagnostics: list[str],
+    context: str | None,
+    code_summary: list[str],
+) -> str:
     language_label = "your code" if language == "plaintext" else f"{language} code"
-    diagnostics_block = "\n".join(diagnostics)
+    diagnostics_block = "\n".join(diagnostics) if diagnostics else "- No static findings were produced for this request."
+    summary_block = "\n".join(code_summary) if code_summary else "- No source file was attached, so this answer is based on the request context only."
+    request_block = f"**Request Context**\n- {context}" if context else ""
 
     if mode == "debug":
-        return (
-            f"**Debug Analysis ({language_label})**\n\n"
-            f"{diagnostics_block}\n\n"
-            "**Next Step**\n"
-            "- Run once and share the runtime stack trace for exact fixes."
-        )
+        sections = [
+            f"**Debug Analysis ({language_label})**",
+            request_block,
+            f"**Code Snapshot**\n{summary_block}",
+            f"**Findings**\n{diagnostics_block}",
+            "**Next Step**\n- Re-run the failing path and capture the exact stack trace or failing input.",
+        ]
+        return "\n\n".join(section for section in sections if section)
     if mode == "enhance":
-        return (
-            f"**Code Enhancement Suggestions ({language_label})**\n\n"
-            f"{diagnostics_block}\n\n"
-            "**Refactor Ideas**\n"
-            "- Split long functions into focused helpers.\n"
-            "- Normalize naming and add concise comments on complex logic.\n"
-            "- Add basic tests for critical paths."
-        )
+        sections = [
+            f"**Code Enhancement Suggestions ({language_label})**",
+            request_block,
+            f"**Code Snapshot**\n{summary_block}",
+            f"**Quality Signals**\n{diagnostics_block}",
+            "**Refactor Ideas**\n- Split long functions into focused helpers.\n- Normalize naming and keep comments only where logic is non-obvious.\n- Add or tighten tests around critical paths.",
+        ]
+        return "\n\n".join(section for section in sections if section)
     if mode == "expand":
-        return (
-            f"**Feature Expansion Plan ({language_label})**\n\n"
-            "- Add validation and edge-case guards.\n"
-            "- Add resilient error handling and user-friendly messages.\n"
-            "- Add tests for success/failure paths.\n\n"
-            "**Current Signals**\n"
-            f"{diagnostics_block}"
-        )
+        sections = [
+            f"**Feature Expansion Plan ({language_label})**",
+            request_block,
+            f"**Current Shape**\n{summary_block}",
+            "**Expansion Opportunities**\n- Add validation and edge-case guards.\n- Add resilient error handling and user-friendly failure states.\n- Add tests for success and failure paths before layering on new features.",
+            f"**Current Signals**\n{diagnostics_block}",
+        ]
+        return "\n\n".join(section for section in sections if section)
     if mode == "teaching":
-        return (
-            f"**Teaching Mode ({language_label})**\n\n"
-            "**What to focus on first**\n"
-            "- Trace input -> transformation -> output.\n"
-            "- Verify assumptions with small test cases.\n\n"
-            "**Guided Hints**\n"
-            f"{diagnostics_block}"
-        )
+        sections = [
+            f"**Teaching Mode ({language_label})**",
+            request_block,
+            f"**What We Are Looking At**\n{summary_block}",
+            "**What to focus on first**\n- Trace input -> transformation -> output.\n- Verify each assumption with a tiny test case.\n- Explain one block in your own words before changing it.",
+            f"**Guided Hints**\n{diagnostics_block}",
+        ]
+        return "\n\n".join(section for section in sections if section)
     if mode == "livefix":
-        return (
-            f"**Live Fix Monitor ({language_label})**\n\n"
-            f"{diagnostics_block}\n\n"
-            "**Live checks**\n"
-            "- Run lint/tests after each save.\n"
-            "- Keep functions short and validate boundaries."
-        )
+        sections = [
+            f"**Live Fix Monitor ({language_label})**",
+            request_block,
+            f"**File Snapshot**\n{summary_block}",
+            f"**Immediate Signals**\n{diagnostics_block}",
+            "**Live checks**\n- Re-run lint/tests after each save.\n- Keep functions short and validate boundaries.\n- Fix the first concrete issue before broad refactors.",
+        ]
+        return "\n\n".join(section for section in sections if section)
 
-    return f"**Analysis ({language_label})**\n\n{diagnostics_block}"
+    sections = [
+        f"**Analysis ({language_label})**",
+        request_block,
+        f"**Code Snapshot**\n{summary_block}",
+        f"**Findings**\n{diagnostics_block}",
+    ]
+    return "\n\n".join(section for section in sections if section)
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
@@ -120,12 +197,20 @@ def analyze_code(
 ) -> AnalyzeResponse:
     started = time.perf_counter()
     code = data.code or ""
-    mode = (data.mode or "debug").strip().lower()
+    mode = _normalize_mode(data.mode or "debug")
     model = (data.model or "gemini").strip()
+    context = _clean_context(data.context)
+
+    has_code = _looks_like_code(code)
+    if not has_code and code.strip() and not context:
+        context = code.strip()
+    if not has_code:
+        code = ""
 
     language = _detect_language(data.language, code)
     diagnostics = _diagnostics_for(code)
-    response = _build_response(mode, language, diagnostics)
+    code_summary = _summarize_code(code, language)
+    response = _build_response(mode, language, diagnostics, context, code_summary)
 
     elapsed_ms = int((time.perf_counter() - started) * 1000)
     token_estimate = max(1, math.ceil(len(code + response) / 4))
@@ -137,4 +222,3 @@ def analyze_code(
         tokens=token_estimate,
         processingTime=elapsed_ms,
     )
-

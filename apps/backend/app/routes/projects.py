@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import String, cast
+from sqlalchemy.exc import IntegrityError
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.project import Project
@@ -41,6 +42,34 @@ def _serialize_file(file: File) -> FileResponse:
         is_active=file.is_active,
         created_at=file.created_at.isoformat(),
         updated_at=file.updated_at.isoformat()
+    )
+
+
+def _next_legacy_file_id(db: Session) -> int:
+    # Legacy databases may store `files.id` as TEXT without auto-generation.
+    # Pick the next numeric id that can be safely cast to int in API responses.
+    max_id = 0
+    for (raw_id,) in db.query(File.id).all():
+        try:
+            parsed = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if parsed > max_id:
+            max_id = parsed
+    return max_id + 1
+
+
+def _is_missing_files_id_error(exc: IntegrityError) -> bool:
+    message = str(getattr(exc, "orig", exc)).lower()
+    return "files" in message and "id" in message and "not null" in message
+
+
+def _is_duplicate_files_id_error(exc: IntegrityError) -> bool:
+    message = str(getattr(exc, "orig", exc)).lower()
+    return (
+        "files" in message
+        and "id" in message
+        and ("duplicate" in message or "unique" in message or "already exists" in message)
     )
 
 # ==================== PROJECTS ====================
@@ -204,7 +233,7 @@ def create_file(
         if not parent:
             raise HTTPException(status_code=404, detail="Parent file not found")
     
-    file = File(
+    file_payload = dict(
         project_id=project_id,
         parent_id=data.parent_id,
         name=data.name,
@@ -212,11 +241,36 @@ def create_file(
         content=data.content,
         is_active=True
     )
-    
+    file = File(**file_payload)
+
     db.add(file)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if not _is_missing_files_id_error(exc):
+            raise
+
+        # Fallback for legacy schemas where files.id has no DB-side default.
+        for _ in range(3):
+            file = File(id=_next_legacy_file_id(db), **file_payload)
+            db.add(file)
+            try:
+                db.commit()
+                break
+            except IntegrityError as retry_exc:
+                db.rollback()
+                if _is_duplicate_files_id_error(retry_exc):
+                    continue
+                raise
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Could not allocate file id for legacy database schema",
+            ) from exc
+
     db.refresh(file)
-    
+
     return _serialize_file(file)
 
 @router.get("/{project_id}/files", response_model=list[FileResponse])

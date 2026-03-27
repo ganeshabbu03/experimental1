@@ -7,10 +7,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { extensionService, type OpenVSXExtension } from '@/services/extensionService';
-import { usePluginStore } from '@/stores/usePluginStore';
+import { getExtensionInstallKey, usePluginStore } from '@/stores/usePluginStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { themeService } from '@/services/themeService';
 import { Search, Loader2, Download, Check, Box } from 'lucide-react';
+import { ExtensionInstallProgressBar } from './ExtensionInstallProgress';
 
 export function SidebarExtensionList() {
     const [query, setQuery] = useState('');
@@ -18,7 +19,15 @@ export function SidebarExtensionList() {
     const [loading, setLoading] = useState(false);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const { installedPlugins, installPlugin, uninstallPlugin, isInstalled, setActiveExtensionDetail } = usePluginStore();
+    const {
+        installedPlugins,
+        installPlugin,
+        uninstallPlugin,
+        isInstalled,
+        setActiveExtensionDetail,
+        setInstallProgress,
+        clearInstallProgress,
+    } = usePluginStore();
     const { addToast } = useToastStore();
 
     const fetchExtensions = useCallback(async (q: string) => {
@@ -91,6 +100,7 @@ export function SidebarExtensionList() {
                                     onInstall={async () => { }}
                                     onUninstall={() => {
                                         uninstallPlugin(p.publisher, p.extension);
+                                        clearInstallProgress(p.publisher, p.extension);
                                         themeService.resetTheme();
                                     }}
                                     onClick={() => setActiveExtensionDetail({
@@ -123,7 +133,17 @@ export function SidebarExtensionList() {
                             installed={isInstalled(ext.namespace, ext.name)}
                             onInstall={async () => {
                                 try {
-                                    const record = await extensionService.installWorkspaceExtension(ext.namespace, ext.name, ext.version);
+                                    setInstallProgress(ext.namespace, ext.name, {
+                                        stage: 'queued',
+                                        progress: 0,
+                                        message: 'Preparing secure download...',
+                                    });
+                                    const record = await extensionService.installExtensionWithProgress(
+                                        ext.namespace,
+                                        ext.name,
+                                        ext.version,
+                                        (event) => setInstallProgress(ext.namespace, ext.name, event),
+                                    );
                                     installPlugin({
                                         publisher: record.publisher,
                                         extension: record.name,
@@ -135,13 +155,21 @@ export function SidebarExtensionList() {
                                     // Try to apply it as a theme right away
                                     themeService.applyPluginTheme(record.publisher, record.name, record.version);
                                     addToast(`Installed ${ext.displayName}`, 'success', 3000);
+                                    window.setTimeout(() => clearInstallProgress(ext.namespace, ext.name), 1200);
                                 } catch (error) {
                                     const message = error instanceof Error ? error.message : 'Unknown error';
+                                    setInstallProgress(ext.namespace, ext.name, {
+                                        stage: 'error',
+                                        progress: 100,
+                                        message,
+                                    });
                                     addToast(`Failed to install ${ext.displayName}: ${message}`, 'error', 4000);
+                                    window.setTimeout(() => clearInstallProgress(ext.namespace, ext.name), 3600);
                                 }
                             }}
                             onUninstall={() => {
                                 uninstallPlugin(ext.namespace, ext.name);
+                                clearInstallProgress(ext.namespace, ext.name);
                                 themeService.resetTheme();
                             }}
                             onClick={() => setActiveExtensionDetail({
@@ -172,67 +200,74 @@ export function SidebarExtensionList() {
 // Compact card optimized for the sidebar
 function SidebarExtensionCard(props: { extension: OpenVSXExtension, installed: boolean, onInstall: () => Promise<void>, onUninstall: () => void, onClick?: () => void }) {
     const { extension, installed, onInstall, onUninstall, onClick } = props;
-    const [loading, setLoading] = useState(false);
     const [imgError, setImgError] = useState(false);
+    const installProgress = usePluginStore((state) => state.installProgress[getExtensionInstallKey(extension.namespace, extension.name)]);
+    const loading = Boolean(installProgress && installProgress.stage !== 'error');
 
     const handleAction = async () => {
         if (installed) {
             onUninstall();
         } else {
-            setLoading(true);
             await onInstall();
-            setLoading(false);
         }
     };
 
     return (
-        <div className="flex gap-3 p-2 rounded hover:bg-[var(--bg-surface-hover)] transition-colors group cursor-pointer" onClick={onClick}>
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded bg-[rgba(124,58,237,0.1)] flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {extension.iconUrl && !imgError ? (
-                        <img
-                            src={extension.iconUrl}
-                            alt={extension.displayName}
-                            className="w-full h-full object-contain"
-                            referrerPolicy="no-referrer"
-                            onError={() => setImgError(true)}
-                        />
-                    ) : (
-                        <Box className="w-4 h-4 text-violet-500" />
-                    )}
+        <div className="rounded hover:bg-[var(--bg-surface-hover)] transition-colors group cursor-pointer" onClick={onClick}>
+            <div className="flex gap-3 p-2">
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded bg-[rgba(124,58,237,0.1)] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {extension.iconUrl && !imgError ? (
+                            <img
+                                src={extension.iconUrl}
+                                alt={extension.displayName}
+                                className="w-full h-full object-contain"
+                                referrerPolicy="no-referrer"
+                                onError={() => setImgError(true)}
+                            />
+                        ) : (
+                            <Box className="w-4 h-4 text-violet-500" />
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col">
+                        <div className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                            {extension.displayName || extension.name}
+                        </div>
+                        <div className="text-[10px] text-[var(--text-secondary)] truncate">
+                            {extension.description}
+                        </div>
+                    </div>
                 </div>
-                <div className="flex-1 min-w-0 flex flex-col">
-                    <div className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                        {extension.displayName || extension.name}
-                    </div>
-                    <div className="text-[10px] text-[var(--text-secondary)] truncate">
-                        {extension.description}
-                    </div>
+
+                <div className="flex items-center justify-center pr-1">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleAction();
+                        }}
+                        disabled={loading}
+                        title={installed ? "Uninstall" : "Install"}
+                        className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${installed
+                            ? "text-emerald-500 hover:bg-red-500/10 hover:text-red-500"
+                            : "text-[var(--text-secondary)] hover:text-orange-500 hover:bg-orange-500/10"
+                            }`}
+                    >
+                        {loading ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : installed ? (
+                            <Check className="w-3.5 h-3.5" />
+                        ) : (
+                            <Download className="w-3.5 h-3.5" />
+                        )}
+                    </button>
                 </div>
             </div>
 
-            <div className="flex items-center justify-center pr-1">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleAction();
-                    }}
-                    disabled={loading}
-                    title={installed ? "Uninstall" : "Install"}
-                    className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${installed
-                        ? "text-emerald-500 hover:bg-red-500/10 hover:text-red-500"
-                        : "text-[var(--text-secondary)] hover:text-orange-500 hover:bg-orange-500/10"
-                        }`}
-                >
-                    {loading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : installed ? (
-                        <Check className="w-3.5 h-3.5" />
-                    ) : (
-                        <Download className="w-3.5 h-3.5" />
-                    )}
-                </button>
-            </div>
+            {installProgress && !installed && (
+                <div className="px-2 pb-2">
+                    <ExtensionInstallProgressBar progress={installProgress} compact />
+                </div>
+            )}
         </div>
     );
 }

@@ -56,6 +56,13 @@ export interface DownloadResult {
     size_bytes?: number;
 }
 
+export interface ExtensionInstallProgressEvent {
+    stage: 'queued' | 'downloading' | 'extracting' | 'installing' | 'complete' | 'error';
+    progress: number;
+    message: string;
+    size_bytes?: number;
+}
+
 export interface WorkspaceExtensionRecord {
     id: string;
     publisher: string;
@@ -114,6 +121,22 @@ const emitWorkspaceExtensionEvent = async <T>(
     } finally {
         socket.disconnect();
     }
+};
+
+const parseSsePayload = (chunk: string): ExtensionInstallProgressEvent[] => {
+    const normalizedChunk = chunk.replace(/\r\n/g, '\n');
+    const payloads = normalizedChunk
+        .split('\n\n')
+        .map((entry) =>
+            entry
+                .split('\n')
+                .filter((line) => line.startsWith('data:'))
+                .map((line) => line.slice(5).trim())
+                .join('')
+        )
+        .filter(Boolean);
+
+    return payloads.map((payload) => JSON.parse(payload) as ExtensionInstallProgressEvent);
 };
 
 // ---------------------------------------------------------------------------
@@ -179,6 +202,79 @@ export const extensionService = {
         );
     },
 
+    async downloadExtensionWithProgress(
+        publisher: string,
+        extension: string,
+        version: string,
+        onProgress?: (event: ExtensionInstallProgressEvent) => void,
+    ): Promise<ExtensionInstallProgressEvent> {
+        const response = await fetch(
+            `${apiClient.baseUrl}/plugins/download/${publisher}/${extension}/${version}`,
+            {
+                method: 'GET',
+                headers: {
+                    Accept: 'text/event-stream',
+                },
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error(`Failed to download ${publisher}.${extension} (HTTP ${response.status})`);
+        }
+
+        if (!response.body) {
+            throw new Error('Download stream is not available in this browser.');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let latestEvent: ExtensionInstallProgressEvent = {
+            stage: 'queued',
+            progress: 0,
+            message: 'Preparing secure download...',
+        };
+
+        onProgress?.(latestEvent);
+
+        while (true) {
+            const { done, value } = await reader.read();
+            buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+            const normalizedBuffer = buffer.replace(/\r\n/g, '\n');
+            const segments = normalizedBuffer.split('\n\n');
+            buffer = segments.pop() || '';
+
+            for (const segment of segments) {
+                const events = parseSsePayload(segment);
+                for (const event of events) {
+                    latestEvent = event;
+                    onProgress?.(event);
+
+                    if (event.stage === 'error') {
+                        throw new Error(event.message);
+                    }
+                }
+            }
+
+            if (done) {
+                if (buffer.trim()) {
+                    const trailingEvents = parseSsePayload(buffer);
+                    for (const event of trailingEvents) {
+                        latestEvent = event;
+                        onProgress?.(event);
+                        if (event.stage === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        return latestEvent;
+    },
+
     /**
      * Delete the downloaded and extracted .vsix files from the backend storage.
      */
@@ -206,6 +302,39 @@ export const extensionService = {
         }
 
         return response.record;
+    },
+
+    async installExtensionWithProgress(
+        publisher: string,
+        extension: string,
+        version: string,
+        onProgress?: (event: ExtensionInstallProgressEvent) => void,
+    ): Promise<WorkspaceExtensionRecord> {
+        await this.downloadExtensionWithProgress(publisher, extension, version, onProgress);
+
+        onProgress?.({
+            stage: 'installing',
+            progress: 100,
+            message: 'Activating extension in your workspace...',
+        });
+
+        try {
+            const record = await this.installWorkspaceExtension(publisher, extension, version);
+            onProgress?.({
+                stage: 'complete',
+                progress: 100,
+                message: `Installed ${publisher}.${extension} successfully`,
+            });
+            return record;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : `Failed to install ${publisher}.${extension}`;
+            onProgress?.({
+                stage: 'error',
+                progress: 100,
+                message,
+            });
+            throw error;
+        }
     },
 
     async uninstallWorkspaceExtension(

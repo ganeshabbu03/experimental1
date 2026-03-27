@@ -4,7 +4,7 @@
 import { apiClient } from './apiClient';
 import type { AIMode } from '@/config/aiModes';
 
-interface AnalyzeResponse {
+export interface AnalyzeResult {
     response: string;
     mode: string;
     model: string;
@@ -12,37 +12,50 @@ interface AnalyzeResponse {
     processingTime?: number;
 }
 
+export interface AnalyzeOptions {
+    context?: string;
+    model?: string;
+    language?: string;
+}
+
 class AIService {
-    async analyze(mode: AIMode, code: string, context?: string): Promise<string> {
-        const response = await apiClient.post<AnalyzeResponse>('/ai/analyze', {
+    async analyzeDetailed(mode: AIMode, code: string, options?: string | AnalyzeOptions): Promise<AnalyzeResult> {
+        const normalizedOptions: AnalyzeOptions =
+            typeof options === 'string' ? { context: options } : (options || {});
+
+        return apiClient.post<AnalyzeResult>('/ai/analyze', {
             code,
             mode,
-            model: 'gemini',
-            context: context || 'Deexen IDE',
+            model: normalizedOptions.model || 'gemini',
+            context: normalizedOptions.context || 'Deexen IDE',
+            language: normalizedOptions.language,
         });
+    }
 
+    async analyze(mode: AIMode, code: string, options?: string | AnalyzeOptions): Promise<string> {
+        const response = await this.analyzeDetailed(mode, code, options);
         return response.response;
     }
 
     // Mode-specific shortcuts
-    async debug(code: string): Promise<string> {
-        return this.analyze('debug', code);
+    async debug(code: string, options?: AnalyzeOptions): Promise<string> {
+        return this.analyze('debug', code, options);
     }
 
-    async enhance(code: string): Promise<string> {
-        return this.analyze('enhance', code);
+    async enhance(code: string, options?: AnalyzeOptions): Promise<string> {
+        return this.analyze('enhance', code, options);
     }
 
-    async expand(code: string): Promise<string> {
-        return this.analyze('expand', code);
+    async expand(code: string, options?: AnalyzeOptions): Promise<string> {
+        return this.analyze('expand', code, options);
     }
 
-    async teach(code: string): Promise<string> {
-        return this.analyze('teaching', code);
+    async teach(code: string, options?: AnalyzeOptions): Promise<string> {
+        return this.analyze('teaching', code, options);
     }
 
-    async livefix(code: string): Promise<string> {
-        return this.analyze('livefix', code);
+    async livefix(code: string, options?: AnalyzeOptions): Promise<string> {
+        return this.analyze('livefix', code, options);
     }
 }
 

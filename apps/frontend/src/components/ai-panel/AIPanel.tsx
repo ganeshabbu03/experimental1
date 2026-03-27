@@ -15,6 +15,39 @@ const AI_MODELS = [
     { id: 'gemini', name: 'Gemini 2.5 Pro', suffix: '' },
 ];
 
+const CODE_LIKE_PATTERN = /[`{}();]|=>|\b(const|let|var|function|class|def|import|export|return|if|else|for|while|interface|type|async|await|SELECT|INSERT|UPDATE|DELETE)\b/;
+
+function looksLikeCode(text: string) {
+    const value = text.trim();
+    if (!value) return false;
+    return value.includes('\n') || CODE_LIKE_PATTERN.test(value);
+}
+
+function getLanguageFromFilename(filename: string) {
+    const extension = filename.split('.').pop()?.toLowerCase() || '';
+    const languageMap: Record<string, string> = {
+        ts: 'typescript',
+        tsx: 'typescript',
+        js: 'javascript',
+        jsx: 'javascript',
+        py: 'python',
+        go: 'go',
+        java: 'java',
+        rs: 'rust',
+        json: 'json',
+        css: 'css',
+        html: 'html',
+        md: 'markdown',
+        sql: 'sql',
+    };
+
+    return languageMap[extension];
+}
+
+function isAIMode(value: string): value is AIMode {
+    return value in MODE_CONFIG;
+}
+
 // Format response with code blocks
 function formatResponse(text: string) {
     const parts = text.split(/(```[\s\S]*?```)/);
@@ -52,7 +85,7 @@ export default function AIPanel() {
     const { activeFileId, files } = useFileStore();
 
     const [input, setInput] = useState('');
-    const [activeModel, setActiveModel] = useState('opus');
+    const [activeModel, setActiveModel] = useState('gemini');
     const [showModeDropdown, setShowModeDropdown] = useState(false);
     const [showModelDropdown, setShowModelDropdown] = useState(false);
     const [showAddMenu, setShowAddMenu] = useState(false);
@@ -62,6 +95,8 @@ export default function AIPanel() {
 
     const config = MODE_CONFIG[selectedMode];
     const currentModel = AI_MODELS.find(m => m.id === activeModel) || AI_MODELS[0];
+    const responseConfig = response ? MODE_CONFIG[response.mode] : config;
+    const displayedModel = AI_MODELS.find(m => m.id === (response?.model || activeModel)) || currentModel;
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,9 +113,9 @@ export default function AIPanel() {
         return () => document.removeEventListener('click', handler);
     }, []);
 
-    // Get current file content
-    const getCurrentCode = () => {
-        if (!activeFileId) return '';
+    // Resolve the current editor file when the user is asking about open code.
+    const getCurrentFile = () => {
+        if (!activeFileId) return { content: '', name: '' };
         const findFile = (nodes: any[]): any => {
             for (const node of nodes) {
                 if (node.id === activeFileId) return node;
@@ -92,14 +127,59 @@ export default function AIPanel() {
             return null;
         };
         const file = findFile(files);
-        return file?.content || '';
+        return {
+            content: file?.content || '',
+            name: file?.name || '',
+        };
+    };
+
+    const resolveAnalysisInput = () => {
+        const prompt = input.trim();
+        const currentFile = getCurrentFile();
+        const promptLooksLikeCode = looksLikeCode(prompt);
+
+        if (promptLooksLikeCode) {
+            return {
+                code: prompt,
+                context: currentFile.name
+                    ? `User pasted code into the AI panel while ${currentFile.name} was open.`
+                    : 'User pasted code into the AI panel.',
+                language: getLanguageFromFilename(currentFile.name),
+                sourceLabel: currentFile.name ? `Pasted code (editor open: ${currentFile.name})` : 'Pasted code',
+                prompt: '',
+            };
+        }
+
+        if (currentFile.content.trim()) {
+            return {
+                code: currentFile.content,
+                context: prompt
+                    ? `User request about ${currentFile.name || 'the open file'}: ${prompt}`
+                    : `Analyze the currently open file${currentFile.name ? ` (${currentFile.name})` : ''}.`,
+                language: getLanguageFromFilename(currentFile.name),
+                sourceLabel: currentFile.name || 'Open file',
+                prompt,
+            };
+        }
+
+        if (prompt) {
+            return {
+                code: '',
+                context: `User request from AI panel: ${prompt}`,
+                language: undefined,
+                sourceLabel: 'Prompt only',
+                prompt,
+            };
+        }
+
+        return null;
     };
 
     const handleAnalyze = async () => {
-        const code = input.trim() || getCurrentCode();
+        const request = resolveAnalysisInput();
 
-        if (!code) {
-            setError('Please write some code first or type a question');
+        if (!request) {
+            setError('Open a file, paste code, or ask a question about the file you are editing.');
             return;
         }
 
@@ -107,14 +187,24 @@ export default function AIPanel() {
         setError(null);
 
         try {
-            // Call real AI backend API
-            const result = await aiService.analyze(selectedMode, code);
+            const result = await aiService.analyzeDetailed(selectedMode, request.code, {
+                model: activeModel,
+                context: request.context,
+                language: request.language,
+            });
+
+            const responseMode = isAIMode(result.mode) ? result.mode : selectedMode;
 
             const responseData = {
-                mode: selectedMode,
-                response: result,
+                mode: responseMode,
+                response: result.response,
                 timestamp: Date.now(),
-                codeAnalyzed: code,
+                codeAnalyzed: request.code,
+                model: result.model,
+                tokens: result.tokens,
+                processingTime: result.processingTime,
+                prompt: request.prompt || undefined,
+                sourceLabel: request.sourceLabel,
             };
 
             setResponse(responseData);
@@ -180,7 +270,7 @@ export default function AIPanel() {
                 {/* Error State */}
                 {error && !isLoading && (
                     <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                        <p className="text-sm text-red-400">⚠️ {error}</p>
+                        <p className="text-sm text-red-400">{error}</p>
                     </div>
                 )}
 
@@ -201,10 +291,10 @@ export default function AIPanel() {
                         <div className="flex items-center justify-between mb-3">
                             <span
                                 className="text-xs px-2 py-1 rounded font-medium flex items-center space-x-1"
-                                style={{ backgroundColor: `${config.color}20`, color: config.color }}
+                                style={{ backgroundColor: `${responseConfig.color}20`, color: responseConfig.color }}
                             >
-                                <config.Icon className="w-3 h-3" />
-                                <span>{config.label}</span>
+                                <responseConfig.Icon className="w-3 h-3" />
+                                <span>{responseConfig.label}</span>
                             </span>
                             <div className="flex items-center space-x-2">
                                 <button
@@ -214,6 +304,20 @@ export default function AIPanel() {
                                     {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
                                     <span>{copied ? 'Copied!' : 'Copy'}</span>
                                 </button>
+                            </div>
+                        </div>
+
+                        <div className="mb-3 space-y-1">
+                            {response.prompt && (
+                                <p className="text-xs text-[var(--text-secondary)]">
+                                    Request: {response.prompt}
+                                </p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-secondary)]">
+                                {response.sourceLabel && <span>Source: {response.sourceLabel}</span>}
+                                <span>Model: {displayedModel.name}</span>
+                                {typeof response.tokens === 'number' && <span>Tokens: {response.tokens}</span>}
+                                {typeof response.processingTime === 'number' && <span>{response.processingTime} ms</span>}
                             </div>
                         </div>
 
@@ -412,3 +516,4 @@ export default function AIPanel() {
         </div>
     );
 }
+

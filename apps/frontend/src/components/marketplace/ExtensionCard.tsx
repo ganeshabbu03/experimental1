@@ -9,8 +9,9 @@
 import { useState } from 'react';
 import { Download, Check, Box, Star, TrendingUp } from 'lucide-react';
 import { extensionService, type OpenVSXExtension } from '@/services/extensionService';
-import { usePluginStore } from '@/stores/usePluginStore';
+import { getExtensionInstallKey, usePluginStore } from '@/stores/usePluginStore';
 import { useToastStore } from '@/stores/useToastStore';
+import { ExtensionInstallProgressBar } from './ExtensionInstallProgress';
 
 interface ExtensionCardProps {
     extension: OpenVSXExtension;
@@ -27,20 +28,36 @@ function formatDownloads(n: number): string {
 
 export function ExtensionCard(props: ExtensionCardProps) {
     const { extension, isTrending = false } = props;
-    const [loading, setLoading] = useState(false);
     const [imgError, setImgError] = useState(false);
-    const { installPlugin, uninstallPlugin, isInstalled } = usePluginStore();
+    const {
+        installPlugin,
+        uninstallPlugin,
+        isInstalled,
+        setInstallProgress,
+        clearInstallProgress,
+    } = usePluginStore();
     const { addToast } = useToastStore();
 
     const publisher = extension.namespace;
     const extName = extension.name;
     const installed = isInstalled(publisher, extName);
+    const installProgress = usePluginStore((state) => state.installProgress[getExtensionInstallKey(publisher, extName)]);
+    const loading = Boolean(installProgress && installProgress.stage !== 'error');
 
     const handleInstall = async () => {
         if (installed || loading) return;
-        setLoading(true);
+        setInstallProgress(publisher, extName, {
+            stage: 'queued',
+            progress: 0,
+            message: 'Preparing secure download...',
+        });
         try {
-            const record = await extensionService.installWorkspaceExtension(publisher, extName, extension.version);
+            const record = await extensionService.installExtensionWithProgress(
+                publisher,
+                extName,
+                extension.version,
+                (event) => setInstallProgress(publisher, extName, event),
+            );
             installPlugin({
                 publisher: record.publisher,
                 extension: record.name,
@@ -50,16 +67,22 @@ export function ExtensionCard(props: ExtensionCardProps) {
                 iconUrl: extension.iconUrl,
             });
             addToast(`Installed ${extension.displayName} successfully!`, 'success', 4000);
+            window.setTimeout(() => clearInstallProgress(publisher, extName), 1200);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
+            setInstallProgress(publisher, extName, {
+                stage: 'error',
+                progress: 100,
+                message,
+            });
             addToast(`Failed to install ${extension.displayName}: ${message}`, 'error', 4000);
-        } finally {
-            setLoading(false);
+            window.setTimeout(() => clearInstallProgress(publisher, extName), 3600);
         }
     };
 
     const handleUninstall = () => {
         uninstallPlugin(publisher, extName);
+        clearInstallProgress(publisher, extName);
         addToast(`${extension.displayName} uninstalled.`, 'info', 3000);
     };
 
@@ -133,6 +156,12 @@ export function ExtensionCard(props: ExtensionCardProps) {
                     </button>
                 )}
             </div>
+
+            {installProgress && !installed && (
+                <div className="mt-3">
+                    <ExtensionInstallProgressBar progress={installProgress} compact />
+                </div>
+            )}
         </div>
     );
 }

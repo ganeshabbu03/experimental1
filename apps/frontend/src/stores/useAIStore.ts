@@ -6,6 +6,11 @@ export interface AIResponse {
     response: string;
     timestamp: number;
     codeAnalyzed: string;
+    model?: string;
+    tokens?: number;
+    processingTime?: number;
+    prompt?: string;
+    sourceLabel?: string;
 }
 
 export interface ChatMessage {
