@@ -17,9 +17,8 @@ gemini_model = None
 if gemini_api_key:
     try:
         genai.configure(api_key=gemini_api_key)
-        # Correcting model ID from 2.5 (non-existent) to 1.5-flash
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-        print("Gemini model initialized successfully.")
+        gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        print(f"Gemini model initialized successfully (key present: {bool(gemini_api_key)}).")
     except Exception as e:
         print(f"Failed to initialize Gemini: {e}")
 
@@ -46,17 +45,15 @@ async def analyze_code(request: AnalyzeRequest):
     
     # Configuration
     api_base = os.getenv("AI_MODEL_API_BASE", "https://openrouter.ai/api/v1")
-    api_key = os.getenv("OPENROUTER_API_KEY", os.getenv("AI_MODEL_API_KEY", "none"))
+    api_key = os.getenv("OPENROUTER_API_KEY", os.getenv("AI_MODEL_API_KEY", ""))
     model_name = request.model
     mode = request.mode
     
     # Optional override for local models
-    if model_name.lower() == "magicoder" and api_key == "none":
+    if model_name.lower() == "magicoder" and not api_key:
         api_base = "http://127.0.0.1:11434/v1"
-    # Construct prompt based on mode - LANGUAGE AGNOSTIC
-    # We remove explicit {request.language} constraints to allow the model to infer from content
-    # This handles "Python inside TSX file" scenarios correctly.
-    
+
+    # Construct prompt based on mode
     skill_level = request.skillLevel.lower() if request.skillLevel else "intermediate"
     user_role = request.role.lower() if request.role else "user"
     
@@ -116,118 +113,116 @@ async def analyze_code(request: AnalyzeRequest):
     # Use mapped name if available, otherwise use original
     target_model = model_map.get(model_name, model_name)
     
-    # Disable native gemini logic and route everything through OpenRouter if api key is present
-    use_native_gemini = False
-    try:
-        if use_native_gemini and model_name.lower().startswith("gemini"):
-             if not gemini_model:
-                 # Attempt lazy init if safe
-                 key = os.getenv("GEMINI_API_KEY")
-                 if key:
-                     genai.configure(api_key=key)
-                     # global gemini_model # Removed: declared at top of function
-                     # For simplicity, we create a local instance if global failed, but normally global runs on import
-                     gemini_model_local = genai.GenerativeModel('gemini-2.5-flash')
-                     gemini_prompt = f"{system_prompt}\n\n{user_prompt}"
-                     response = await gemini_model_local.generate_content_async(gemini_prompt)
-                     response_text = response.text
-                 else:
-                     raise Exception("GEMINI_API_KEY not set or model initialization failed")
-             else:
-                 gemini_prompt = f"{system_prompt}\n\n{user_prompt}"
-                 response = await gemini_model.generate_content_async(gemini_prompt)
-                 response_text = response.text
+    response_text = None
+    errors = []
 
+    # ── Strategy 1: Try native Gemini SDK if key is available ──
+    if gemini_api_key and response_text is None:
+        try:
+            if not gemini_model:
+                genai.configure(api_key=gemini_api_key)
+                gemini_model = genai.GenerativeModel('gemini-2.0-flash')
 
-        else:
-            # Standard OpenAI/Ollama Format
-            print(f"DEBUG: Connecting to {api_base}/chat/completions")
-            print(f"DEBUG: Model: {target_model}")
-            
-            # Increase timeout and add retries if needed
+            gemini_prompt = f"{system_prompt}\n\n{user_prompt}"
+            gemini_response = await gemini_model.generate_content_async(gemini_prompt)
+            response_text = gemini_response.text
+            print(f"[AI] Gemini SDK success for mode={mode}")
+        except Exception as e:
+            errors.append(f"Gemini SDK: {e}")
+            print(f"[AI] Gemini SDK failed: {e}")
+
+    # ── Strategy 2: Try OpenRouter API if key is available ──
+    if api_key and response_text is None:
+        try:
+            print(f"[AI] Trying OpenRouter: {api_base}/chat/completions model={target_model}")
             timeout_config = httpx.Timeout(60.0, connect=10.0)
             async with httpx.AsyncClient(timeout=timeout_config) as client:
-                try:
-                    response = await client.post(
-                        f"{api_base}/chat/completions",
-                        headers={"Authorization": f"Bearer {api_key}"},
-                        json={
-                            "model": target_model,
-                            "messages": [
-                                {"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}
-                            ] if "gemma" in target_model.lower() else [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt}
-                            ],
-                            "temperature": 0.2 if mode in ["debug", "livefix"] else 0.7,
-                            "max_tokens": 1319,
-                        }
-                    )
-                    
-                    if response.status_code != 200:
-                        print(f"AI API Error: {response.text}")
-                        if response.status_code == 429 and target_model != "openrouter/free":
-                            print(f"Model {target_model} is rate limited upstream. Falling back to Groq API.")
-                            target_model = "llama-3.3-70b-versatile"
-                            fallback_api_base = "https://api.groq.com/openai/v1"
-                            fallback_api_key = os.getenv("GROQ_API_KEY", "")
-                            
-                            # Retry request with fallback model on Groq
-                            response = await client.post(
-                                f"{fallback_api_base}/chat/completions",
-                                headers={"Authorization": f"Bearer {fallback_api_key}"},
-                                json={
-                                    "model": target_model,
-                                    "messages": [
-                                        {"role": "system", "content": system_prompt},
-                                        {"role": "user", "content": user_prompt}
-                                    ],
-                                    "temperature": 0.2 if mode in ["debug", "livefix"] else 0.7,
-                                    "max_tokens": 1319,
-                                }
-                            )
-                            if response.status_code != 200:
-                                print(f"Fallback AI API Error: {response.text}")
-                                raise Exception(f"API Error: {response.status_code}")
-                        else:
-                            # If model not found, try to give a helpful specific error
-                            if response.status_code == 404:
-                                raise Exception(f"Model '{target_model}' not found on server.")
-                            raise Exception(f"API Error: {response.status_code}")
-
+                response = await client.post(
+                    f"{api_base}/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={
+                        "model": target_model,
+                        "messages": [
+                            {"role": "user", "content": f"{system_prompt}\n\n{user_prompt}"}
+                        ] if "gemma" in target_model.lower() else [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        "temperature": 0.2 if mode in ["debug", "livefix"] else 0.7,
+                        "max_tokens": 2048,
+                    }
+                )
+                
+                if response.status_code == 200:
                     data = response.json()
                     response_text = data["choices"][0]["message"]["content"]
-                except (httpx.ConnectError, httpx.ReadTimeout) as e:
-                     print(f"DEBUG: Exception type: {type(e)}")
-                     print(f"DEBUG: Exception details: {e}")
-                     raise Exception(f"Connection Failed: {str(e)}")
+                    print(f"[AI] OpenRouter success for mode={mode}")
+                else:
+                    errors.append(f"OpenRouter ({response.status_code}): {response.text[:200]}")
+                    print(f"[AI] OpenRouter error {response.status_code}: {response.text[:200]}")
+        except Exception as e:
+            errors.append(f"OpenRouter: {e}")
+            print(f"[AI] OpenRouter failed: {e}")
 
-            
-    except Exception as e:
-        if "Connection Failed" in str(e) or "not found" in str(e):
-             print(f"AI Model Status: {str(e)} (Falling back to simulation)")
+    # ── Strategy 3: Try Groq API as fallback ──
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    if groq_key and response_text is None:
+        try:
+            print(f"[AI] Trying Groq fallback")
+            timeout_config = httpx.Timeout(60.0, connect=10.0)
+            async with httpx.AsyncClient(timeout=timeout_config) as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {groq_key}"},
+                    json={
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        "temperature": 0.2 if mode in ["debug", "livefix"] else 0.7,
+                        "max_tokens": 2048,
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    response_text = data["choices"][0]["message"]["content"]
+                    print(f"[AI] Groq success for mode={mode}")
+                else:
+                    errors.append(f"Groq ({response.status_code}): {response.text[:200]}")
+                    print(f"[AI] Groq error {response.status_code}")
+        except Exception as e:
+            errors.append(f"Groq: {e}")
+            print(f"[AI] Groq failed: {e}")
+
+    # ── Final fallback: Return clear error instead of hardcoded fake analysis ──
+    if response_text is None:
+        configured_keys = []
+        if gemini_api_key:
+            configured_keys.append("GEMINI_API_KEY")
+        if api_key:
+            configured_keys.append("OPENROUTER_API_KEY")
+        if groq_key:
+            configured_keys.append("GROQ_API_KEY")
+
+        if not configured_keys:
+            response_text = (
+                "**⚠️ No AI API keys configured.**\n\n"
+                "To enable AI analysis, set one of these environment variables:\n"
+                "- `GEMINI_API_KEY` — Free tier available at [Google AI Studio](https://aistudio.google.com/apikey)\n"
+                "- `OPENROUTER_API_KEY` — Multi-model access at [OpenRouter](https://openrouter.ai)\n"
+                "- `GROQ_API_KEY` — Fast inference at [Groq](https://console.groq.com)\n\n"
+                "Add the key to your Railway environment variables and redeploy."
+            )
         else:
-             import traceback
-             traceback.print_exc()
-             print(f"AI Connection Failed: {repr(e)}")
-        
-        # Graceful fallback to simulation logic
-        if "magicoder" in model_name.lower() or "wizard" in model_name.lower():
-            response_text = f"**[Offline Simulation Mode]**\n(Could not connect to model at {api_base}. Error: {e})\nDEBUG: Model={model_name}, Target={target_model}, Base={api_base}\n\nAnalyzed using {model_name} in {mode} mode.\n\n"
-            if mode == "debug":
-                response_text += "Found potential issues in the syntax. Recommend checking line 5 for null safety."
-            elif mode == "enhance":
-                response_text += "Suggesting refactor to use async/await for better readability."
-            elif mode == "expand":
-                response_text += "Proposed expansion: Implement a caching layer logic and add retry mechanism with exponential backoff."
-            elif mode == "teaching":
-                response_text += "Let's analyze this together. What happens if the input is null? Hint: Check boundary conditions."
-            elif mode == "livefix":
-                response_text += "Live Monitor: No critical errors found. Suggesting type refinement on line 12."
-            else:
-                response_text += "Analysis complete. The code looks standard but could be optimized for performance."
-        else:
-             response_text = f"**[Offline Mode]** Connection failed. Please check your API configuration."
+            error_details = "\n".join(f"- {e}" for e in errors)
+            response_text = (
+                f"**⚠️ AI analysis failed.**\n\n"
+                f"Configured keys: {', '.join(configured_keys)}\n\n"
+                f"Errors encountered:\n{error_details}\n\n"
+                f"Please check your API key validity and network connectivity."
+            )
 
     processing_time = round(time.time() - start_time, 2)
     
@@ -268,7 +263,6 @@ async def websocket_livefix(websocket: WebSocket):
                 continue
                 
             mode_instruction = "Analyze the user's code for bugs, errors, and optimizations."
-            mode_instruction = "Analyze the user's code for bugs, errors, and optimizations."
             if mode == "debug":
                 mode_instruction = "Focus STRICTLY on finding bugs, syntax errors, and logical issues. Ignore incomplete typing."
             elif mode == "enhance":
@@ -300,11 +294,34 @@ async def websocket_livefix(websocket: WebSocket):
                  user_prompt += f"Cursor is at line: {cursor_pos.get('lineNumber')}, column: {cursor_pos.get('column')}\n"
                  
             system_prompt = persona
+
+            await websocket.send_json({"type": "status", "message": "Analyzing..."})
+
+            # Try Gemini SDK first for WebSocket livefix if no Groq key
+            if not api_key and gemini_api_key:
+                try:
+                    if not gemini_model:
+                        genai.configure(api_key=gemini_api_key)
+                        gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+
+                    gemini_prompt = f"{system_prompt}\n\n{user_prompt}"
+                    gemini_response = await gemini_model.generate_content_async(gemini_prompt)
+                    full_response = gemini_response.text
+                    await websocket.send_json({"type": "chunk", "text": full_response})
+                    await websocket.send_json({"type": "done", "full_text": full_response})
+                    continue
+                except Exception as e:
+                    print(f"WS Gemini Exception: {e}")
+                    await websocket.send_json({"type": "error", "message": f"Gemini failed: {str(e)}"})
+                    continue
+
+            # Groq streaming path
+            if not api_key:
+                await websocket.send_json({"type": "error", "message": "No AI API key configured (GROQ_API_KEY or GEMINI_API_KEY required)"})
+                continue
             
             # Groq model mapping
             target_model = "llama-3.3-70b-versatile"
-            
-            await websocket.send_json({"type": "status", "message": "Analyzing..."})
             
             # Start streaming response
             try:
@@ -320,8 +337,8 @@ async def websocket_livefix(websocket: WebSocket):
                                 {"role": "user", "content": user_prompt}
                             ],
                             "temperature": 0.1,
-                            "max_tokens": 1319,
-                            "stream": True # Enable streaming
+                            "max_tokens": 2048,
+                            "stream": True
                         }
                     ) as response:
                         if response.status_code != 200:
