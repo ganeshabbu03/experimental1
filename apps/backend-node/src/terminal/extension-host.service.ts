@@ -414,9 +414,32 @@ export class ExtensionHostService implements OnModuleInit {
         }
     }
 
+    private async withExtensionWorkingDirectory<T>(extensionDir: string, task: () => Promise<T> | T): Promise<T> {
+        const previousCwd = process.cwd();
+        const previousPwd = process.env.PWD;
+
+        try {
+            if (previousCwd !== extensionDir) {
+                process.chdir(extensionDir);
+            }
+            process.env.PWD = extensionDir;
+            return await task();
+        } finally {
+            if (process.cwd() !== previousCwd) {
+                process.chdir(previousCwd);
+            }
+            if (previousPwd === undefined) {
+                delete process.env.PWD;
+            } else {
+                process.env.PWD = previousPwd;
+            }
+        }
+    }
+
     private async tryLoadExtension(extPath: string): Promise<any | null> {
         try {
-            const packageJsonPath = path.join(extPath, 'extension', 'package.json');
+            const extensionDir = path.join(extPath, 'extension');
+            const packageJsonPath = path.join(extensionDir, 'package.json');
             if (!fs.existsSync(packageJsonPath)) return null;
 
             const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -427,7 +450,7 @@ export class ExtensionHostService implements OnModuleInit {
                 return null;
             }
 
-            const mainPath = path.join(extPath, 'extension', mainFile);
+            const mainPath = path.join(extensionDir, mainFile);
             if (!fs.existsSync(mainPath) && !fs.existsSync(mainPath + '.js')) {
                 console.log(`[ExtensionHost] Skipping ${pkg.name}: Main entrypoint not found at ${mainPath}`);
                 return null;
@@ -436,22 +459,26 @@ export class ExtensionHostService implements OnModuleInit {
 
             console.log(`[ExtensionHost] Loading extension: ${extId}`);
 
-            const extensionModule = require(mainPath);
-
             const context = {
                 subscriptions: [],
                 workspaceState: { get: () => undefined, update: () => { } },
                 globalState: { get: () => undefined, update: () => { } },
-                extensionPath: path.join(extPath, 'extension'),
+                extensionPath: extensionDir,
                 globalStoragePath: path.join(extPath, 'globalStorage'),
                 logPath: path.join(extPath, 'logs'),
-                extensionUri: this.currentVscodeApi.Uri.file(path.join(extPath, 'extension')),
+                extensionUri: this.currentVscodeApi.Uri.file(extensionDir),
             };
 
-            if (typeof extensionModule.activate === 'function') {
-                await extensionModule.activate(context);
-                console.log(`[ExtensionHost] Activated ${extId} successfully.`);
-            }
+            let extensionModule: any;
+            await this.withExtensionWorkingDirectory(extensionDir, async () => {
+                // Some VS Code extensions read localized assets via relative filesystem paths.
+                extensionModule = require(mainPath);
+
+                if (typeof extensionModule.activate === 'function') {
+                    await extensionModule.activate(context);
+                    console.log(`[ExtensionHost] Activated ${extId} successfully.`);
+                }
+            });
 
             return {
                 id: extId,

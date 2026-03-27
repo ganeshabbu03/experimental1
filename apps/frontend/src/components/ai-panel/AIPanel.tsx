@@ -6,6 +6,8 @@ import { MODE_CONFIG, AI_MODES } from '@/config/aiModes';
 import type { AIMode } from '@/config/aiModes';
 import { aiService } from '@/services/aiService';
 import { useFileStore } from '@/stores/useFileStore';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // AI Models
 const AI_MODELS = [
@@ -48,36 +50,8 @@ function isAIMode(value: string): value is AIMode {
     return value in MODE_CONFIG;
 }
 
-// Format response with code blocks
-function formatResponse(text: string) {
-    const parts = text.split(/(```[\s\S]*?```)/);
-
-    return parts.map((part, idx) => {
-        if (part.startsWith('```')) {
-            const lines = part.replace(/```/g, '').trim().split('\n');
-            // Remove language identifier if present (e.g., "javascript", "python")
-            if (lines[0] && lines[0].match(/^[a-z]+$/i)) lines.shift();
-            const code = lines.join('\n');
-            return (
-                <pre key={idx} className="bg-[#0a0a0a] border border-[var(--border-default)] rounded p-3 my-2 overflow-x-auto">
-                    <code className="text-xs text-neutral-300 font-mono">{code}</code>
-                </pre>
-            );
-        } else {
-            // Parse bold text
-            const formatted = part.split(/(\*\*.*?\*\*)/).map((segment, i) => {
-                if (segment.startsWith('**') && segment.endsWith('**')) {
-                    return <strong key={i} className="text-[var(--text-primary)]">{segment.slice(2, -2)}</strong>;
-                }
-                return segment;
-            });
-            return part.trim() ? (
-                <p key={idx} className="text-sm text-[var(--text-secondary)] leading-relaxed mb-2">
-                    {formatted}
-                </p>
-            ) : null;
-        }
-    });
+function normalizeMarkdown(text: string) {
+    return text.replace(/\r\n/g, '\n').trim();
 }
 
 export default function AIPanel() {
@@ -97,6 +71,7 @@ export default function AIPanel() {
     const currentModel = AI_MODELS.find(m => m.id === activeModel) || AI_MODELS[0];
     const responseConfig = response ? MODE_CONFIG[response.mode] : config;
     const displayedModel = AI_MODELS.find(m => m.id === (response?.model || activeModel)) || currentModel;
+    const markdownResponse = response ? normalizeMarkdown(response.response) : '';
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -317,13 +292,56 @@ export default function AIPanel() {
                                 {response.sourceLabel && <span>Source: {response.sourceLabel}</span>}
                                 <span>Model: {displayedModel.name}</span>
                                 {typeof response.tokens === 'number' && <span>Tokens: {response.tokens}</span>}
-                                {typeof response.processingTime === 'number' && <span>{response.processingTime} ms</span>}
+                                {typeof response.processingTime === 'number' && response.processingTime > 0 && (
+                                    <span>{response.processingTime} ms</span>
+                                )}
                             </div>
                         </div>
 
                         {/* Response Content */}
-                        <div className="prose prose-invert prose-sm max-w-none text-[var(--text-primary)]">
-                            {formatResponse(response.response)}
+                        <div className="max-w-none text-[var(--text-primary)]">
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    p: ({ children }) => (
+                                        <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-2 whitespace-pre-wrap break-words">
+                                            {children}
+                                        </p>
+                                    ),
+                                    strong: ({ children }) => (
+                                        <strong className="text-[var(--text-primary)] font-semibold">{children}</strong>
+                                    ),
+                                    ul: ({ children }) => (
+                                        <ul className="list-disc pl-5 mb-2 space-y-1 text-sm text-[var(--text-secondary)]">
+                                            {children}
+                                        </ul>
+                                    ),
+                                    ol: ({ children }) => (
+                                        <ol className="list-decimal pl-5 mb-2 space-y-1 text-sm text-[var(--text-secondary)]">
+                                            {children}
+                                        </ol>
+                                    ),
+                                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                    pre: ({ children }) => (
+                                        <pre className="bg-[#0a0a0a] border border-[var(--border-default)] rounded p-3 my-2 overflow-x-auto">
+                                            {children}
+                                        </pre>
+                                    ),
+                                    code: ({ className, children }) => {
+                                        const isBlock = typeof className === 'string' && className.includes('language-');
+                                        if (!isBlock) {
+                                            return (
+                                                <code className="text-xs font-mono bg-[var(--bg-surface-hover)] border border-[var(--border-default)] rounded px-1 py-0.5 text-[var(--text-primary)]">
+                                                    {children}
+                                                </code>
+                                            );
+                                        }
+                                        return <code className="text-xs text-neutral-300 font-mono">{children}</code>;
+                                    },
+                                }}
+                            >
+                                {markdownResponse}
+                            </ReactMarkdown>
                         </div>
 
                         {/* Response Footer */}
@@ -359,7 +377,7 @@ export default function AIPanel() {
                             onKeyDown={handleKeyDown}
                             placeholder="Ask anything (Ctrl+L), @ to mention, / for workflows"
                             rows={2}
-                            className="w-full bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 pr-20 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-sercondary)] placeholder:opacity-50 focus:outline-none focus:border-white/10 focus:ring-1 focus:ring-white/5 resize-none transition-all duration-300 backdrop-blur-sm"
+                            className="w-full bg-[rgba(0,0,0,0.2)] border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 pr-20 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] placeholder:opacity-50 focus:outline-none focus:border-white/10 focus:ring-1 focus:ring-white/5 resize-none transition-all duration-300 backdrop-blur-sm"
                         />
                         <div className="absolute right-2 bottom-2 flex items-center space-x-1.5">
                             <button className="p-1.5 text-[var(--text-secondary)] hover:text-white transition-colors group">

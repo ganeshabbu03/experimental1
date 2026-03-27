@@ -61,7 +61,16 @@ def _next_legacy_file_id(db: Session) -> int:
 
 def _is_missing_files_id_error(exc: IntegrityError) -> bool:
     message = str(getattr(exc, "orig", exc)).lower()
-    return "files" in message and "id" in message and "not null" in message
+    return (
+        "files" in message
+        and "id" in message
+        and (
+            "not null" in message
+            or "not-null" in message
+            or "notnullviolation" in message
+            or ("null value in column" in message and "violates" in message)
+        )
+    )
 
 
 def _is_duplicate_files_id_error(exc: IntegrityError) -> bool:
