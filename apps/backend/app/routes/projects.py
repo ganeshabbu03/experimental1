@@ -243,6 +243,7 @@ def create_file(
             raise HTTPException(status_code=404, detail="Parent file not found")
     
     file_payload = dict(
+        user_id=current_user.id,
         project_id=project_id,
         parent_id=data.parent_id,
         name=data.name,

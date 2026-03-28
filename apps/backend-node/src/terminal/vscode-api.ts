@@ -116,7 +116,29 @@ class UriImpl {
     ) { }
 
     static file(filePath: string) { return new UriImpl('file', '', filePath); }
-    static parse(value: string) { return new UriImpl('parsed', '', value); }
+    static parse(value: string) {
+        try {
+            const parsed = new URL(value);
+            return new UriImpl(
+                parsed.protocol.replace(/:$/, ''),
+                parsed.host,
+                parsed.pathname || '/',
+                parsed.search ? parsed.search.slice(1) : '',
+                parsed.hash ? parsed.hash.slice(1) : '',
+            );
+        } catch {
+            const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(value);
+            if (schemeMatch) {
+                const scheme = schemeMatch[1];
+                const remainder = value.slice(schemeMatch[0].length);
+                const slashIdx = remainder.indexOf('/');
+                const authority = slashIdx >= 0 ? remainder.slice(0, slashIdx) : remainder;
+                const pathPart = slashIdx >= 0 ? remainder.slice(slashIdx) : '/';
+                return new UriImpl(scheme, authority, pathPart || '/');
+            }
+            return new UriImpl('file', '', value);
+        }
+    }
     static joinPath(base: UriImpl, ...paths: string[]) { return new UriImpl(base.scheme, base.authority, path.join(base.path, ...paths)); }
 
     with(change: { scheme?: string; authority?: string; path?: string; query?: string; fragment?: string }) {
@@ -136,7 +158,15 @@ class UriImpl {
     get fragment() { return this._fragment; }
     get fsPath() { return this._path; }
 
-    toString() { return this._path; }
+    toString() {
+        if (this._scheme === 'file') {
+            return this._path;
+        }
+        const authority = this._authority ? `//${this._authority}` : '';
+        const query = this._query ? `?${this._query}` : '';
+        const fragment = this._fragment ? `#${this._fragment}` : '';
+        return `${this._scheme}:${authority}${this._path}${query}${fragment}`;
+    }
 }
 
 // ─── Service Interfaces ──────────────────────────────────────────────
@@ -461,6 +491,7 @@ export function createVscodeApi(services: VscodeApiServices) {
     const onDidCloseTerminalEmitter = new EventEmitter<any>();
     const onDidChangeActiveColorThemeEmitter = new EventEmitter<any>();
     const notebookDocuments: any[] = [];
+    const textDocumentContentProviders = new Map<string, { provider: any; subscription?: { dispose: () => void } }>();
 
     const baseApi: any = {
         // ─── Data Types ──────────────────────────────────────────
@@ -835,6 +866,42 @@ export function createVscodeApi(services: VscodeApiServices) {
             onDidCloseNotebookDocument: onDidCloseNotebookDocumentEmitter.event,
             onDidChangeNotebookDocument: onDidChangeNotebookDocumentEmitter.event,
             onDidSaveNotebookDocument: onDidSaveNotebookDocumentEmitter.event,
+            registerTextDocumentContentProvider: (scheme: string, provider: any) => {
+                const normalizedScheme = String(scheme || '').toLowerCase();
+                if (!normalizedScheme || !provider || typeof provider.provideTextDocumentContent !== 'function') {
+                    console.warn('[ExtensionHost] Ignoring invalid text document content provider registration');
+                    return { dispose: () => { } };
+                }
+
+                const existing = textDocumentContentProviders.get(normalizedScheme);
+                if (existing?.subscription) {
+                    try { existing.subscription.dispose(); } catch { }
+                }
+
+                let subscription: { dispose: () => void } | undefined;
+                if (provider.onDidChange && typeof provider.onDidChange === 'function') {
+                    subscription = provider.onDidChange((changedUri: any) => {
+                        onDidChangeTextDocumentEmitter.fire({
+                            document: { uri: changedUri },
+                            contentChanges: [],
+                            reason: 'provider',
+                        });
+                    });
+                }
+
+                textDocumentContentProviders.set(normalizedScheme, { provider, subscription });
+                console.log(`[ExtensionHost] Registered text document content provider for scheme: ${normalizedScheme}`);
+
+                return {
+                    dispose: () => {
+                        const current = textDocumentContentProviders.get(normalizedScheme);
+                        if (current?.subscription) {
+                            try { current.subscription.dispose(); } catch { }
+                        }
+                        textDocumentContentProviders.delete(normalizedScheme);
+                    },
+                };
+            },
 
             // REAL: Reads/writes configuration from storage file
             getConfiguration: (section?: string) => {
@@ -1007,12 +1074,10 @@ export function createVscodeApi(services: VscodeApiServices) {
             },
 
             openTextDocument: async (uriOrPath: any) => {
-                const p = typeof uriOrPath === 'string' ? uriOrPath : uriOrPath?.fsPath || String(uriOrPath);
-                const content = fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
-                return {
-                    uri: UriImpl.file(p),
-                    fileName: p,
-                    languageId: path.extname(p).slice(1) || 'plaintext',
+                const toDocument = (uri: any, content: string) => ({
+                    uri,
+                    fileName: uri?.fsPath || uri?.path || String(uri),
+                    languageId: path.extname(uri?.path || uri?.fsPath || String(uri)).slice(1) || 'plaintext',
                     version: 1,
                     getText: () => content,
                     lineAt: (lineOrPos: any) => {
@@ -1035,7 +1100,41 @@ export function createVscodeApi(services: VscodeApiServices) {
                     isDirty: false,
                     isUntitled: false,
                     save: async () => true,
-                };
+                });
+
+                const resolvedUri = (() => {
+                    if (uriOrPath?.uri) return uriOrPath.uri;
+                    if (typeof uriOrPath === 'string') {
+                        const looksLikeUri = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(uriOrPath);
+                        return looksLikeUri ? UriImpl.parse(uriOrPath) : UriImpl.file(uriOrPath);
+                    }
+                    if (uriOrPath?.scheme) return uriOrPath;
+                    const fallbackPath = uriOrPath?.fsPath || String(uriOrPath);
+                    return UriImpl.file(fallbackPath);
+                })();
+
+                const scheme = String(resolvedUri?.scheme || '').toLowerCase();
+                if (scheme && scheme !== 'file') {
+                    const providerEntry = textDocumentContentProviders.get(scheme);
+                    if (providerEntry?.provider && typeof providerEntry.provider.provideTextDocumentContent === 'function') {
+                        const providedContent = await Promise.resolve(
+                            providerEntry.provider.provideTextDocumentContent(
+                                resolvedUri,
+                                { isCancellationRequested: false, onCancellationRequested: new EventEmitter<any>().event },
+                            ),
+                        );
+                        const doc = toDocument(resolvedUri, typeof providedContent === 'string' ? providedContent : '');
+                        onDidOpenTextDocumentEmitter.fire(doc);
+                        return doc;
+                    }
+                }
+
+                const filePath = resolvedUri?.fsPath || resolvedUri?.path || String(resolvedUri);
+                const content = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+                const fileUri = resolvedUri?.scheme ? resolvedUri : UriImpl.file(filePath);
+                const doc = toDocument(fileUri, content);
+                onDidOpenTextDocumentEmitter.fire(doc);
+                return doc;
             },
         },
         notebooks: {

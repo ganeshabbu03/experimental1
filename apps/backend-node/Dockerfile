@@ -15,7 +15,8 @@ COPY . .
 RUN npm run build
 
 ENV NODE_ENV=production \
-    PORT=8080
+    PORT=8080 \
+    PRISMA_DB_PUSH_ON_START=false
 
 EXPOSE 8080
-CMD ["sh", "-c", "echo '[Startup] Container starting...'; if [ -n \"${DATABASE_URL}\" ]; then timeout 30 npx prisma db push 2>&1 || echo '[warn] prisma db push failed or timed out'; else echo '[warn] DATABASE_URL not set; skipping prisma db push'; fi; echo '[Startup] Launching node dist/main...'; exec node dist/main"]
+CMD ["sh", "scripts/start.sh"]

@@ -7,6 +7,7 @@ class File(Base):
     __tablename__ = "files"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     parent_id = Column(Integer, ForeignKey("files.id"), nullable=True)
     name = Column(String(255), nullable=False)
