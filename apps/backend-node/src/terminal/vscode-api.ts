@@ -490,8 +490,11 @@ export function createVscodeApi(services: VscodeApiServices) {
     const onDidChangeVisibleNotebookEditorsEmitter = new EventEmitter<any>();
     const onDidCloseTerminalEmitter = new EventEmitter<any>();
     const onDidChangeActiveColorThemeEmitter = new EventEmitter<any>();
+    const onDidChangeTelemetryEnabledEmitter = new EventEmitter<boolean>();
     const notebookDocuments: any[] = [];
     const textDocumentContentProviders = new Map<string, { provider: any; subscription?: { dispose: () => void } }>();
+    const commandContext = new Map<string, any>();
+    let telemetryEnabled = (process.env.VSCODE_TELEMETRY_ENABLED ?? 'false').toLowerCase() === 'true';
 
     const baseApi: any = {
         // ─── Data Types ──────────────────────────────────────────
@@ -566,6 +569,14 @@ export function createVscodeApi(services: VscodeApiServices) {
             },
             executeCommand: async (command: string, ...rest: any[]) => {
                 console.log(`[ExtensionHost] Executing command: ${command}`);
+                if (command === 'setContext') {
+                    const [contextKey, contextValue] = rest;
+                    if (typeof contextKey === 'string' && contextKey.length > 0) {
+                        commandContext.set(contextKey, contextValue);
+                        services.wsEmit('extension.context.updated', { key: contextKey, value: contextValue });
+                    }
+                    return undefined;
+                }
                 const handler = registeredCommands.get(command);
                 if (handler) {
                     return handler(...rest);
@@ -1250,6 +1261,8 @@ export function createVscodeApi(services: VscodeApiServices) {
             machineId: os.hostname(),
             sessionId: `session-${Date.now()}`,
             uriScheme: 'deexen',
+            isTelemetryEnabled: telemetryEnabled,
+            onDidChangeTelemetryEnabled: onDidChangeTelemetryEnabledEmitter.event,
             openExternal: async (uri: any) => {
                 services.wsEmit('extension.openExternal', { uri: String(uri) });
                 return true;
