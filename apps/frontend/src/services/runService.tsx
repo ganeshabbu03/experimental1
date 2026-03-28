@@ -5,8 +5,12 @@ import { useOutputStore } from '@/stores/useOutputStore';
 // Piston API Configuration
 const PISTON_API_URL = 'https://emkc.org/api/v2/piston/execute';
 
-// Language Mapping for Piston
-const EXTENSION_MAP: Record<string, { language: string, version: string }> = {
+// Dynamic Language Mapping for Piston
+let dynamicExtensionMap: Record<string, { language: string, version: string }> | null = null;
+let isFetchingRuntimes = false;
+
+// Fallback map for common languages until dynamic map loads
+const FALLBACK_EXTENSION_MAP: Record<string, { language: string, version: string }> = {
     'java': { language: 'java', version: '15.0.2' },
     'py': { language: 'python', version: '3.10.0' },
     'cpp': { language: 'c++', version: '10.2.0' },
@@ -18,6 +22,38 @@ const EXTENSION_MAP: Record<string, { language: string, version: string }> = {
     'js': { language: 'javascript', version: '18.15.0' },
     'ts': { language: 'typescript', version: '5.0.3' },
 };
+
+export const getPistonRuntimes = async (): Promise<Record<string, { language: string, version: string }>> => {
+    if (dynamicExtensionMap) return dynamicExtensionMap;
+    
+    dynamicExtensionMap = { ...FALLBACK_EXTENSION_MAP };
+    
+    if (isFetchingRuntimes) return dynamicExtensionMap;
+    isFetchingRuntimes = true;
+
+    try {
+        const res = await fetch('https://emkc.org/api/v2/piston/runtimes');
+        if (res.ok) {
+            const runtimes = await res.json();
+            const newMap: Record<string, { language: string, version: string }> = {};
+            runtimes.forEach((r: any) => {
+                newMap[r.language] = { language: r.language, version: r.version };
+                r.aliases.forEach((alias: string) => {
+                    newMap[alias] = { language: r.language, version: r.version };
+                });
+            });
+            dynamicExtensionMap = newMap;
+        }
+    } catch (e) {
+        console.warn('Failed to fetch piston runtimes, using fallback map', e);
+    }
+    
+    isFetchingRuntimes = false;
+    return dynamicExtensionMap;
+};
+
+// Pre-fetch runtimes gracefully in background
+setTimeout(() => { getPistonRuntimes(); }, 1000);
 
 export const runService = {
     runCode: async (file: FileNode, activeFileContent?: string, stdin?: string) => {
@@ -107,7 +143,9 @@ export const runService = {
         };
 
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
-        const runtime = EXTENSION_MAP[ext];
+        
+        const extMap = await getPistonRuntimes();
+        const runtime = extMap[ext] || extMap[file.name.toLowerCase()];
 
         if (!runtime) {
             writeOutput(<span className="text-yellow-500">Execution not supported for <strong>.{ext}</strong> files.</span>, `Execution not supported for .${ext} files.`, 'error');

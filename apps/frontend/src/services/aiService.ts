@@ -26,7 +26,7 @@ class AIService {
         return apiClient.post<AnalyzeResult>('/ai/analyze', {
             code,
             mode,
-            model: normalizedOptions.model || 'gemini',
+            model: normalizedOptions.model || 'gemini-free',
             context: normalizedOptions.context || 'Deexen IDE',
             language: normalizedOptions.language,
         });

@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String
@@ -199,8 +200,12 @@ def create_file(
     )
     
     db.add(file)
-    db.commit()
-    db.refresh(file)
+    try:
+        db.commit()
+        db.refresh(file)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create file: {str(e)}")
     
     return FileResponse(
         id=file.id,
@@ -211,8 +216,8 @@ def create_file(
         file_type=file.file_type,
         content=file.content,
         is_active=file.is_active,
-        created_at=file.created_at.isoformat(),
-        updated_at=file.updated_at.isoformat()
+        created_at=(file.created_at or datetime.utcnow()).isoformat(),
+        updated_at=(file.updated_at or datetime.utcnow()).isoformat()
     )
 
 @router.get("/{project_id}/files", response_model=list[FileResponse])
@@ -326,8 +331,8 @@ def get_file(
         file_type=file.file_type,
         content=file.content,
         is_active=file.is_active,
-        created_at=file.created_at.isoformat(),
-        updated_at=file.updated_at.isoformat()
+        created_at=(file.created_at or datetime.utcnow()).isoformat(),
+        updated_at=(file.updated_at or datetime.utcnow()).isoformat()
     )
 
 @router.put("/{project_id}/files/{file_id}", response_model=FileResponse)
@@ -366,8 +371,12 @@ def update_file(
     if data.content is not None:
         file.content = data.content
     
-    db.commit()
-    db.refresh(file)
+    try:
+        db.commit()
+        db.refresh(file)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update file: {str(e)}")
     
     return FileResponse(
         id=file.id,
@@ -378,8 +387,8 @@ def update_file(
         file_type=file.file_type,
         content=file.content,
         is_active=file.is_active,
-        created_at=file.created_at.isoformat(),
-        updated_at=file.updated_at.isoformat()
+        created_at=(file.created_at or datetime.utcnow()).isoformat(),
+        updated_at=(file.updated_at or datetime.utcnow()).isoformat()
     )
 
 @router.delete("/{project_id}/files/{file_id}")

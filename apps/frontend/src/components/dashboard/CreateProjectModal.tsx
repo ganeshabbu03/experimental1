@@ -62,17 +62,24 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                         Language
                     </label>
-                    <select
+                    <Input
+                        list="languages"
                         value={language}
                         onChange={(e) => setLanguage(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    >
-                        <option value="TypeScript">TypeScript</option>
-                        <option value="JavaScript">JavaScript</option>
-                        <option value="React">React</option>
-                        <option value="Python">Python</option>
-                        <option value="Go">Go</option>
-                    </select>
+                        placeholder="e.g. TypeScript, Rust, C++"
+                    />
+                    <datalist id="languages">
+                        <option value="TypeScript" />
+                        <option value="JavaScript" />
+                        <option value="Python" />
+                        <option value="Go" />
+                        <option value="Rust" />
+                        <option value="Java" />
+                        <option value="C++" />
+                        <option value="C" />
+                        <option value="Ruby" />
+                        <option value="PHP" />
+                    </datalist>
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-2">

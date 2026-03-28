@@ -14,13 +14,18 @@ router = APIRouter()
 gemini_api_key = os.getenv("GEMINI_API_KEY", "")
 gemini_model = None
 
+def mask_key(key: str) -> str:
+    if not key or len(key) < 10:
+        return "(empty)" if not key else "(too-short)"
+    return f"{key[:6]}...{key[-4:]}"
+
 if gemini_api_key:
     try:
         genai.configure(api_key=gemini_api_key)
         gemini_model = genai.GenerativeModel('gemini-2.0-flash')
-        print(f"Gemini model initialized successfully (key present: {bool(gemini_api_key)}).")
+        print(f"[AI] Gemini model initialized successfully (key: {mask_key(gemini_api_key)}).")
     except Exception as e:
-        print(f"Failed to initialize Gemini: {e}")
+        print(f"[AI] Failed to initialize Gemini: {e}")
 
 class AnalyzeRequest(BaseModel):
     code: str
@@ -118,6 +123,7 @@ async def analyze_code(request: AnalyzeRequest):
 
     # ── Strategy 1: Try native Gemini SDK if key is available ──
     if gemini_api_key and response_text is None:
+        print(f"[AI] Trying Gemini SDK (key: {mask_key(gemini_api_key)})")
         try:
             if not gemini_model:
                 genai.configure(api_key=gemini_api_key)
@@ -134,7 +140,7 @@ async def analyze_code(request: AnalyzeRequest):
     # ── Strategy 2: Try OpenRouter API if key is available ──
     if api_key and response_text is None:
         try:
-            print(f"[AI] Trying OpenRouter: {api_base}/chat/completions model={target_model}")
+            print(f"[AI] Trying OpenRouter (key: {mask_key(api_key)}): {api_base}/chat/completions model={target_model}")
             timeout_config = httpx.Timeout(60.0, connect=10.0)
             async with httpx.AsyncClient(timeout=timeout_config) as client:
                 response = await client.post(
@@ -168,7 +174,7 @@ async def analyze_code(request: AnalyzeRequest):
     groq_key = os.getenv("GROQ_API_KEY", "")
     if groq_key and response_text is None:
         try:
-            print(f"[AI] Trying Groq fallback")
+            print(f"[AI] Trying Groq fallback (key: {mask_key(groq_key)})")
             timeout_config = httpx.Timeout(60.0, connect=10.0)
             async with httpx.AsyncClient(timeout=timeout_config) as client:
                 response = await client.post(
@@ -213,16 +219,45 @@ async def analyze_code(request: AnalyzeRequest):
                 "- `GEMINI_API_KEY` — Free tier available at [Google AI Studio](https://aistudio.google.com/apikey)\n"
                 "- `OPENROUTER_API_KEY` — Multi-model access at [OpenRouter](https://openrouter.ai)\n"
                 "- `GROQ_API_KEY` — Fast inference at [Groq](https://console.groq.com)\n\n"
-                "Add the key to your Railway environment variables and redeploy."
+                "Add the key to your `.env` file and restart the backend server."
             )
         else:
             error_details = "\n".join(f"- {e}" for e in errors)
-            response_text = (
-                f"**⚠️ AI analysis failed.**\n\n"
-                f"Configured keys: {', '.join(configured_keys)}\n\n"
-                f"Errors encountered:\n{error_details}\n\n"
-                f"Please check your API key validity and network connectivity."
-            )
+            # Check if any error looks like an auth/API key issue
+            auth_error = any("401" in str(e) or "403" in str(e) or "invalid" in str(e).lower() or "expired" in str(e).lower() for e in errors)
+            rate_limit = any("429" in str(e) for e in errors)
+
+            if auth_error:
+                response_text = (
+                    f"**⚠️ AI API key error.**\n\n"
+                    f"One or more of your API keys is invalid or expired.\n\n"
+                    f"Configured keys: {', '.join(configured_keys)}\n\n"
+                    f"Errors:\n{error_details}\n\n"
+                    f"**Fix:**\n"
+                    f"1. Verify your keys in `apps/backend/.env`\n"
+                    f"2. OpenRouter key: check dashboard at https://openrouter.ai/settings/keys\n"
+                    f"3. Ensure the key has credits and hasn't expired\n"
+                    f"4. Restart the backend after updating `.env`"
+                )
+            elif rate_limit:
+                response_text = (
+                    f"**⚠️ AI rate limit exceeded.**\n\n"
+                    f"Configured keys: {', '.join(configured_keys)}\n\n"
+                    f"Errors:\n{error_details}\n\n"
+                    f"**Fix:** Wait a minute and try again, or add a `GROQ_API_KEY` "
+                    f"for a fallback provider at https://console.groq.com"
+                )
+            else:
+                response_text = (
+                    f"**⚠️ AI analysis failed.**\n\n"
+                    f"Configured keys: {', '.join(configured_keys)}\n\n"
+                    f"Errors:\n{error_details}\n\n"
+                    f"**Fix:**\n"
+                    f"1. Check network connectivity to the AI provider\n"
+                    f"2. Try a different model (use `gemini-free` or `deepseek-free`)\n"
+                    f"3. Verify your API keys have available credits\n"
+                    f"4. Restart the backend after updating `.env`"
+                )
 
     processing_time = round(time.time() - start_time, 2)
     
@@ -311,13 +346,23 @@ async def websocket_livefix(websocket: WebSocket):
                     await websocket.send_json({"type": "done", "full_text": full_response})
                     continue
                 except Exception as e:
-                    print(f"WS Gemini Exception: {e}")
+                    print(f"[AI-WS] Gemini Exception: {e}")
                     await websocket.send_json({"type": "error", "message": f"Gemini failed: {str(e)}"})
                     continue
 
             # Groq streaming path
-            if not api_key:
-                await websocket.send_json({"type": "error", "message": "No AI API key configured (GROQ_API_KEY or GEMINI_API_KEY required)"})
+            if not api_key and not gemini_api_key:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "No AI API key configured. Set GROQ_API_KEY or GEMINI_API_KEY in apps/backend/.env and restart the server."
+                })
+                continue
+            elif not api_key and gemini_api_key:
+                # Gemini was tried and failed above, nothing else to try
+                await websocket.send_json({
+                    "type": "error",
+                    "message": "Gemini failed and no GROQ_API_KEY configured. Add a Groq key as fallback: https://console.groq.com"
+                })
                 continue
             
             # Groq model mapping
