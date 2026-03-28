@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer
-from starlette.requests import Request
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, HTTPException, status # type: ignore
+from fastapi.security import HTTPBearer # type: ignore
+from starlette.requests import Request # type: ignore
+from sqlalchemy.orm import Session # type: ignore
+from sqlalchemy.exc import IntegrityError # type: ignore
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
-from jose import JWTError, jwt
+from passlib.context import CryptContext # type: ignore
+from jose import JWTError, jwt # type: ignore
 import os
-from app.database import SessionLocal
-from app.models.user import User
-from app.schemas.auth import RegisterRequest, LoginRequest, UserResponse, TokenResponse, LogoutResponse
+import uuid
+from app.database import SessionLocal # type: ignore
+from app.models.user import User # type: ignore
+from app.schemas.auth import RegisterRequest, LoginRequest, UserResponse, TokenResponse, LogoutResponse # type: ignore
 
 router = APIRouter()
 security = HTTPBearer()
@@ -91,12 +92,7 @@ def verify_token(request: Request) -> dict:
         if user_id_str is None:
             raise HTTPException(status_code=401, detail="Invalid token")
 
-        try:
-            user_id = int(user_id_str)
-        except (ValueError, TypeError):
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        return {"user_id": user_id}
+        return {"user_id": str(user_id_str)}
     except JWTError:
         pass
 
@@ -109,7 +105,7 @@ def verify_token(request: Request) -> dict:
 
 def get_current_user(token_data: dict = Depends(verify_token), db: Session = Depends(get_db)) -> User:
     if "user_id" in token_data:
-        user = db.query(User).filter(User.id == token_data["user_id"]).first()
+        user = db.query(User).filter(User.id == str(token_data["user_id"])).first()
     else:
         email = (token_data.get("email") or "").lower()
         if not email:
@@ -120,6 +116,7 @@ def get_current_user(token_data: dict = Depends(verify_token), db: Session = Dep
             metadata = token_data.get("user_metadata") or {}
             default_name = email.split("@")[0] if "@" in email else "User"
             user = User(
+                id=str(token_data.get("sub")),
                 email=email,
                 name=metadata.get("name") or metadata.get("full_name") or default_name,
                 provider="supabase",
@@ -153,6 +150,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
         # Create new user with hashed password
         user = User(
+            id=str(uuid.uuid4()),
             email=data.email.lower(),
             password=hash_password(data.password),
             name=data.name,

@@ -1,7 +1,7 @@
 FROM node:22-bookworm-slim
 
 # Workspace service uses git to clone repos, node-pty needs build tools, Prisma needs openssl
-RUN apt-get update && apt-get install -y git openssl python3 build-essential && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git openssl python3 build-essential default-jdk && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY package*.json ./

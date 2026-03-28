@@ -2,58 +2,34 @@ import { type ReactNode } from 'react';
 import { type FileNode } from '@/stores/useFileStore';
 import { useOutputStore } from '@/stores/useOutputStore';
 
-// Piston API Configuration
-const PISTON_API_URL = 'https://emkc.org/api/v2/piston/execute';
+// OneCompiler API Configuration
+const ONECOMPILER_API_URL = 'https://api.onecompiler.com/v1/run';
 
-// Dynamic Language Mapping for Piston
-let dynamicExtensionMap: Record<string, { language: string, version: string }> | null = null;
-let isFetchingRuntimes = false;
-
-// Fallback map for common languages until dynamic map loads
-const FALLBACK_EXTENSION_MAP: Record<string, { language: string, version: string }> = {
-    'java': { language: 'java', version: '15.0.2' },
-    'py': { language: 'python', version: '3.10.0' },
-    'cpp': { language: 'c++', version: '10.2.0' },
-    'c': { language: 'c', version: '10.2.0' },
-    'go': { language: 'go', version: '1.16.2' },
-    'rs': { language: 'rust', version: '1.68.2' },
-    'php': { language: 'php', version: '8.2.3' },
-    'rb': { language: 'ruby', version: '3.0.1' },
-    'js': { language: 'javascript', version: '18.15.0' },
-    'ts': { language: 'typescript', version: '5.0.3' },
+// Map extensions or common names to OneCompiler language identifiers
+const LANGUAGE_MAP: Record<string, string> = {
+    'java': 'java',
+    'py': 'python',
+    'python': 'python',
+    'cpp': 'cpp', 'cxx': 'cpp', 'cc': 'cpp',
+    'c': 'c',
+    'go': 'go',
+    'rs': 'rust',
+    'rust': 'rust',
+    'php': 'php',
+    'rb': 'ruby',
+    'ruby': 'ruby',
+    'js': 'nodejs', 'javascript': 'nodejs',
+    'ts': 'typescript',
+    'cs': 'csharp', 'csharp': 'csharp',
+    'swift': 'swift',
+    'kt': 'kotlin', 'kotlin': 'kotlin',
+    'sh': 'bash', 'bash': 'bash',
+    'sql': 'sqlite3'
 };
 
-export const getPistonRuntimes = async (): Promise<Record<string, { language: string, version: string }>> => {
-    if (dynamicExtensionMap) return dynamicExtensionMap;
-    
-    dynamicExtensionMap = { ...FALLBACK_EXTENSION_MAP };
-    
-    if (isFetchingRuntimes) return dynamicExtensionMap;
-    isFetchingRuntimes = true;
-
-    try {
-        const res = await fetch('https://emkc.org/api/v2/piston/runtimes');
-        if (res.ok) {
-            const runtimes = await res.json();
-            const newMap: Record<string, { language: string, version: string }> = {};
-            runtimes.forEach((r: any) => {
-                newMap[r.language] = { language: r.language, version: r.version };
-                r.aliases.forEach((alias: string) => {
-                    newMap[alias] = { language: r.language, version: r.version };
-                });
-            });
-            dynamicExtensionMap = newMap;
-        }
-    } catch (e) {
-        console.warn('Failed to fetch piston runtimes, using fallback map', e);
-    }
-    
-    isFetchingRuntimes = false;
-    return dynamicExtensionMap;
+export const getCompilerLanguage = (extOrName: string): string | null => {
+    return LANGUAGE_MAP[extOrName.toLowerCase()] || null;
 };
-
-// Pre-fetch runtimes gracefully in background
-setTimeout(() => { getPistonRuntimes(); }, 1000);
 
 export const runService = {
     runCode: async (file: FileNode, activeFileContent?: string, stdin?: string) => {
@@ -88,19 +64,19 @@ export const runService = {
             if (isBrowserJS || isBrowserTS) {
                 // Prepare a safe console environment
                 const safeConsole = {
-                    log: (...args: any[]) => {
+                    log: (...args: unknown[]) => {
                         const output = args.map(a => String(a)).join(' ');
                         writeOutput(<span>{output}</span>, output, 'stdout');
                     },
-                    error: (...args: any[]) => {
+                    error: (...args: unknown[]) => {
                         const output = args.map(a => String(a)).join(' ');
                         writeOutput(<span className="text-red-400">{output}</span>, output, 'stderr');
                     },
-                    warn: (...args: any[]) => {
+                    warn: (...args: unknown[]) => {
                         const output = args.map(a => String(a)).join(' ');
                         writeOutput(<span className="text-yellow-400">{output}</span>, output, 'info');
                     },
-                    info: (...args: any[]) => {
+                    info: (...args: unknown[]) => {
                         const output = args.map(a => String(a)).join(' ');
                         writeOutput(<span className="text-blue-400">{output}</span>, output, 'info');
                     }
@@ -112,7 +88,7 @@ export const runService = {
 
                 try {
                     // Stripping imports/exports for simple execution (very basic)
-                    let executableContent = content
+                    const executableContent = content
                         .replace(/import\s+.*from\s+['"].*['"];?/g, '')
                         .replace(/export\s+default\s+/g, '')
                         .replace(/export\s+/g, '');
@@ -122,59 +98,52 @@ export const runService = {
 
                     writeOutput(<span className="text-green-500 opacity-50 mt-1 block">✓ Execution finished</span>, '✓ Execution finished', 'success');
 
-                } catch (err: any) {
+                } catch (e) {
+                    const err = e as Error;
                     writeOutput(<span className="text-red-500 group"><span className="font-bold">Runtime Error:</span> {err.message}</span>, `Runtime Error: ${err.message}`, 'error');
                 }
             } else {
-                // Use Piston for everything else (Java, Python, C++, etc.)
-                await runService.executeWithPiston(file, content, stdin);
+                // Use OneCompiler for everything else (Java, Python, C++, etc.)
+                await runService.executeWithOneCompiler(file, content, stdin);
             }
-        } catch (e: any) {
+        } catch (rawError) {
+            const e = rawError as Error;
             writeOutput(<span className="text-red-500">System Error: {e.message}</span>, `System Error: ${e.message}`, 'error');
         }
     },
 
-    executeWithPiston: async (file: FileNode, content: string, stdin?: string) => {
+    executeWithOneCompiler: async (file: FileNode, content: string, stdin?: string) => {
         const { addLine } = useOutputStore.getState();
 
-        // Helper to write to both terminal and output
         const writeOutput = (_terminalContent: ReactNode, outputText: string, outputType: 'stdout' | 'stderr' | 'info' | 'success' | 'error' = 'stdout') => {
             addLine(outputText, outputType);
         };
 
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
-        
-        const extMap = await getPistonRuntimes();
-        const runtime = extMap[ext] || extMap[file.name.toLowerCase()];
+        const languageId = getCompilerLanguage(ext) || getCompilerLanguage(file.name);
 
-        if (!runtime) {
+        if (!languageId) {
             writeOutput(<span className="text-yellow-500">Execution not supported for <strong>.{ext}</strong> files.</span>, `Execution not supported for .${ext} files.`, 'error');
             return;
         }
 
-        writeOutput(<span className="text-gray-400 italic">Sending to Piston ({runtime.language} v{runtime.version})...</span>, `Sending to Piston (${runtime.language} v${runtime.version})...`, 'info');
+        writeOutput(<span className="text-gray-400 italic">Sending to OneCompiler ({languageId})...</span>, `Sending to OneCompiler (${languageId})...`, 'info');
 
-        // Pre-process content to improve success rate
         let processedContent = content;
 
-        // Java: Strip package declarations and fix class name mismatches
-        if (runtime.language === 'java') {
+        if (languageId === 'java') {
             if (processedContent.includes('package ')) {
                 writeOutput(<span className="text-yellow-500 opacity-60 text-xs">Info: Stripping 'package' declaration for remote execution.</span>, "Info: Stripping 'package' declaration for remote execution.", 'info');
                 processedContent = processedContent.replace(/^\s*package\s+[\w.]+;/gm, '// package stripped by runService');
             }
 
-            // Try to find the class with main method and rename it to match filename
             const expectedClassName = file.name.replace('.java', '');
             const mainMethodRegex = /public\s+static\s+void\s+main\s*\(\s*String\s*\[\s*\]\s*\w+\s*\)/;
-
-            // Find all public class declarations
             const classMatches = processedContent.matchAll(/public\s+class\s+(\w+)/g);
             let mainClassName = null;
 
             for (const match of classMatches) {
                 const className = match[1];
-                // Check if this class has a main method
                 const classStartIndex = match.index!;
                 const classContent = processedContent.substring(classStartIndex);
 
@@ -184,10 +153,8 @@ export const runService = {
                 }
             }
 
-            // If we found a main class and it doesn't match the filename, rename it
             if (mainClassName && mainClassName !== expectedClassName) {
                 writeOutput(<span className="text-yellow-500 opacity-60 text-xs">Info: Renaming class '{mainClassName}' to '{expectedClassName}' to match filename.</span>, `Info: Renaming class '${mainClassName}' to '${expectedClassName}' to match filename.`, 'info');
-                // Replace the class name (be careful to only replace the class declaration, not other occurrences)
                 processedContent = processedContent.replace(
                     new RegExp(`(public\\s+class\\s+)${mainClassName}\\b`, 'g'),
                     `$1${expectedClassName}`
@@ -196,12 +163,15 @@ export const runService = {
         }
 
         try {
-            const response = await fetch(PISTON_API_URL, {
+            const response = await fetch(ONECOMPILER_API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-api-key': import.meta.env.VITE_ONECOMPILER_API_KEY || '',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                },
                 body: JSON.stringify({
-                    language: runtime.language,
-                    version: runtime.version,
+                    language: languageId,
                     files: [
                         {
                             name: file.name,
@@ -213,31 +183,33 @@ export const runService = {
             });
 
             if (!response.ok) {
-                throw new Error(`API Request Failed: ${response.statusText}`);
+                throw new Error(`API Request Failed: ${response.statusText} (${response.status})`);
             }
 
             const data = await response.json();
 
-            // Handle compilation output (if any)
-            if (data.compile && data.compile.output) {
-                writeOutput(<span className="text-yellow-400 whitespace-pre-wrap block mb-2">{data.compile.output}</span>, data.compile.output, 'info');
-            }
-
             // Handle run output
-            if (data.run) {
-                const output = data.run.output || '';
-                const isError = (data.run.stderr && data.run.stderr.length > 0) || (data.run.code !== 0);
+            if (data.status === 'success') {
+                const output = data.stdout || '';
+                const errorOutput = data.stderr || data.exception || '';
+
+                if (errorOutput) {
+                    writeOutput(<span className="text-red-400 whitespace-pre-wrap block mb-2">{errorOutput}</span>, errorOutput, 'stderr');
+                }
 
                 if (output.trim()) {
-                    writeOutput(<span className={`${isError ? 'text-red-400' : 'text-[var(--text-primary)]'} whitespace-pre-wrap block`}>{output}</span>, output, isError ? 'stderr' : 'stdout');
-                } else if (!data.compile?.output) {
+                    writeOutput(<span className="text-[var(--text-primary)] whitespace-pre-wrap block">{output}</span>, output, 'stdout');
+                } else if (!errorOutput) {
                     writeOutput(<span className="text-gray-500 italic block">No output returned.</span>, 'No output returned.', 'info');
                 }
+            } else {
+                writeOutput(<span className="text-red-400 whitespace-pre-wrap block mb-2">Execution failed: {data.exception || 'Unknown Error'}</span>, `Execution failed: ${data.exception || 'Unknown Error'}`, 'stderr');
             }
 
             writeOutput(<span className="text-green-500 opacity-50 mt-1 block">✓ Remote Execution finished</span>, '✓ Remote Execution finished', 'success');
 
-        } catch (err: any) {
+        } catch (rawErr) {
+            const err = rawErr as Error;
             writeOutput(<span className="text-red-500 block"><span className="font-bold">API Error:</span> {err.message}</span>, `API Error: ${err.message}`, 'error');
         }
     }
