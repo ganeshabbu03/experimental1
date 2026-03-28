@@ -17,6 +17,7 @@ import { TerminalApiService } from './extensions/terminal-api.service';
 import { ExtensionHostProcessService } from './extensions/extension-host-process.service';
 import { ExtensionsGateway } from './extensions/extensions.gateway';
 import { HealthController } from './health.controller';
+import { OnlineCompilerService } from './compiler/online-compiler.service';
 
 // Root Application Module
 @Module({
@@ -29,7 +30,7 @@ import { HealthController } from './health.controller';
         WorkspaceModule,
     ],
     controllers: [HealthController],
-    providers: [PrismaService, TerminalGateway, ExtensionHostService, ExtensionApiFrameworkService, LspGateway, ExtensionRegistryDbService, OpenVsxClientService, VsixInstallerService, ExtensionManagerService, CommandRegistryService, TerminalApiService, ExtensionHostProcessService, ExtensionsGateway],
+    providers: [PrismaService, TerminalGateway, ExtensionHostService, ExtensionApiFrameworkService, LspGateway, ExtensionRegistryDbService, OpenVsxClientService, VsixInstallerService, ExtensionManagerService, CommandRegistryService, TerminalApiService, ExtensionHostProcessService, ExtensionsGateway, OnlineCompilerService],
     exports: [PrismaService],
 })
 export class AppModule { }

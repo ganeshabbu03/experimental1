@@ -33,6 +33,7 @@ function buildExecCommand(exe: string, args: string): string {
 import * as fs from 'fs';
 import * as path from 'path';
 import { ExtensionHostService } from './extension-host.service';
+import { OnlineCompilerExecutionResult, OnlineCompilerService } from '../compiler/online-compiler.service';
 
 @WebSocketGateway({
     cors: {
@@ -47,7 +48,10 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
     private terminals: Map<string, any> = new Map();
     private workspaceRoots: Map<string, string> = new Map();
 
-    constructor(private extensionHostService: ExtensionHostService) {
+    constructor(
+        private extensionHostService: ExtensionHostService,
+        private onlineCompilerService: OnlineCompilerService,
+    ) {
         this.ptyModule = this.loadNodePty();
     }
 
@@ -157,9 +161,43 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
         }
     }
 
+    private writeTerminalBlock(ptyProcess: any, text: string) {
+        const normalized = text.replace(/\r?\n/g, '\r\n');
+        ptyProcess.write(`\r\n${normalized}\r\n`);
+    }
+
+    private writeOnlineCompilerResult(
+        ptyProcess: any,
+        filename: string,
+        result: OnlineCompilerExecutionResult,
+    ) {
+        const languageLabel = result.language
+            ? `${result.language}${result.version ? ` ${result.version}` : ''}`
+            : 'unknown runtime';
+        this.writeTerminalBlock(ptyProcess, `[Online Compiler] Running ${filename} (${languageLabel})`);
+
+        if (result.error) {
+            this.writeTerminalBlock(ptyProcess, result.error);
+        }
+
+        if (result.compileOutput && result.compileOutput.trim().length > 0) {
+            this.writeTerminalBlock(ptyProcess, `[Compile Output]\n${result.compileOutput}`);
+        }
+
+        if (result.runOutput && result.runOutput.trim().length > 0) {
+            this.writeTerminalBlock(ptyProcess, result.runOutput);
+        } else if (!result.compileOutput && result.success) {
+            this.writeTerminalBlock(ptyProcess, '[Online Compiler] Program finished with no output.');
+        }
+
+        if (typeof result.exitCode === 'number') {
+            this.writeTerminalBlock(ptyProcess, `[Online Compiler] Exit code: ${result.exitCode}`);
+        }
+    }
+
     @SubscribeMessage('terminal.run')
     async handleRun(
-        @MessageBody() payload: { filename: string; content: string; command?: string },
+        @MessageBody() payload: { filename: string; content: string; command?: string; stdin?: string },
         @ConnectedSocket() client: Socket,
     ) {
         const ptyProcess = this.terminals.get(client.id);
@@ -183,6 +221,18 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
                 const vscodeApi = this.extensionHostService.getVscodeApi();
                 await this.extensionHostService.executeCommand(payload.command, vscodeApi.Uri.file(filePath));
                 return;
+            }
+
+            const onlineResult = await this.onlineCompilerService.executeFile(
+                payload.filename,
+                payload.content,
+                payload.stdin || '',
+            );
+            if (onlineResult.handled) {
+                this.writeOnlineCompilerResult(ptyProcess, payload.filename, onlineResult);
+                if (!onlineResult.shouldFallback) {
+                    return;
+                }
             }
 
             const ext = path.extname(payload.filename).toLowerCase();
