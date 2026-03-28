@@ -161,37 +161,40 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
         }
     }
 
-    private writeTerminalBlock(ptyProcess: any, text: string) {
+    private writeTerminalBlock(client: Socket, text: string) {
         const normalized = text.replace(/\r?\n/g, '\r\n');
-        ptyProcess.write(`\r\n${normalized}\r\n`);
+        client.emit('terminal.data', `\r\n\x1b[36m${normalized}\x1b[0m\r\n`);
     }
 
     private writeOnlineCompilerResult(
-        ptyProcess: any,
+        client: Socket,
         filename: string,
         result: OnlineCompilerExecutionResult,
     ) {
         const languageLabel = result.language
             ? `${result.language}${result.version ? ` ${result.version}` : ''}`
             : 'unknown runtime';
-        this.writeTerminalBlock(ptyProcess, `[Online Compiler] Running ${filename} (${languageLabel})`);
+        this.writeTerminalBlock(client, `[Online Compiler] Running ${filename} (${languageLabel})`);
 
         if (result.error) {
-            this.writeTerminalBlock(ptyProcess, result.error);
+            this.writeTerminalBlock(client, result.error);
         }
 
         if (result.compileOutput && result.compileOutput.trim().length > 0) {
-            this.writeTerminalBlock(ptyProcess, `[Compile Output]\n${result.compileOutput}`);
+            this.writeTerminalBlock(client, `[Compile Output]\n${result.compileOutput}`);
         }
 
         if (result.runOutput && result.runOutput.trim().length > 0) {
-            this.writeTerminalBlock(ptyProcess, result.runOutput);
+            // Do not colorize raw run output, just send raw text wrapped in CRLF
+            const normalized = result.runOutput.replace(/\r?\n/g, '\r\n');
+            client.emit('terminal.data', `\r\n${normalized}\r\n`);
         } else if (!result.compileOutput && result.success) {
-            this.writeTerminalBlock(ptyProcess, '[Online Compiler] Program finished with no output.');
+            this.writeTerminalBlock(client, '[Online Compiler] Program finished with no output.');
         }
 
         if (typeof result.exitCode === 'number') {
-            this.writeTerminalBlock(ptyProcess, `[Online Compiler] Exit code: ${result.exitCode}`);
+            const colorCode = result.exitCode === 0 ? '\x1b[32m' : '\x1b[31m';
+            client.emit('terminal.data', `\r\n${colorCode}[Online Compiler] Exit code: ${result.exitCode}\x1b[0m\r\n`);
         }
     }
 
@@ -229,7 +232,7 @@ export class TerminalGateway implements OnGatewayConnection, OnGatewayDisconnect
                 payload.stdin || '',
             );
             if (onlineResult.handled) {
-                this.writeOnlineCompilerResult(ptyProcess, payload.filename, onlineResult);
+                this.writeOnlineCompilerResult(client, payload.filename, onlineResult);
                 if (!onlineResult.shouldFallback) {
                     return;
                 }
