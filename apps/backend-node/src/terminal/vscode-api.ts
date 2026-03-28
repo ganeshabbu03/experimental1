@@ -372,6 +372,31 @@ export function createVscodeApi(services: VscodeApiServices) {
         return true;
     }
 
+    function createL10nBridge() {
+        return {
+            bundle: undefined as any,
+            uri: undefined as any,
+            t: (...args: any[]) => {
+                if (typeof args[0] === 'string') return args[0];
+                if (typeof args[0] === 'object' && args[0]?.message) return args[0].message;
+                return String(args[0] ?? '');
+            },
+        };
+    }
+
+    function getFallbackExtension(extensionId: string) {
+        const extensionPath = process.cwd();
+        return {
+            id: extensionId,
+            packageJSON: { version: '1.0.0' },
+            extensionPath,
+            extensionUri: UriImpl.file(extensionPath),
+            isActive: true,
+            activate: async () => { },
+            exports: {},
+        };
+    }
+
     // ─── Real Configuration ──────────────────────────────────────
 
     function readConfig(): Record<string, any> {
@@ -1134,29 +1159,13 @@ export function createVscodeApi(services: VscodeApiServices) {
 
         // ─── Extensions registry ─────────────────────────────────
         extensions: {
-            getExtension: (extensionId: string) => ({
-                id: extensionId,
-                packageJSON: { version: '1.0.0' },
-                extensionPath: '',
-                isActive: true,
-                activate: async () => { },
-                exports: {},
-            }),
+            getExtension: (extensionId: string) => getFallbackExtension(extensionId),
             all: [],
             onDidChange: new EventEmitter<any>().event,
         },
 
         // ─── Localization (l10n) ─────────────────────────────────
-        l10n: {
-            bundle: undefined,
-            uri: undefined,
-            t: (...args: any[]) => {
-                // Simple pass-through: return the message string as-is
-                if (typeof args[0] === 'string') return args[0];
-                if (typeof args[0] === 'object' && args[0].message) return args[0].message;
-                return String(args[0] ?? '');
-            },
-        },
+        l10n: createL10nBridge(),
 
         // ─── Debug (stub — no debug adapter yet) ─────────────────
         debug: {
@@ -1198,6 +1207,27 @@ export function createVscodeApi(services: VscodeApiServices) {
     // Proxy to auto-create missing uppercase classes 
     return new Proxy(baseApi, {
         get: function (target: any, prop: string | symbol) {
+            if (prop === 'l10n') {
+                // Keep l10n available even if an extension mutates this field.
+                if (!target.l10n || typeof target.l10n !== 'object') {
+                    target.l10n = createL10nBridge();
+                }
+                return target.l10n;
+            }
+
+            if (prop === 'extensions') {
+                if (!target.extensions || typeof target.extensions !== 'object') {
+                    target.extensions = {
+                        getExtension: (extensionId: string) => getFallbackExtension(extensionId),
+                        all: [],
+                        onDidChange: new EventEmitter<any>().event,
+                    };
+                } else if (typeof target.extensions.getExtension !== 'function') {
+                    target.extensions.getExtension = (extensionId: string) => getFallbackExtension(extensionId);
+                }
+                return target.extensions;
+            }
+
             if (prop in target) return target[prop];
 
             if (typeof prop === 'string' && /^[A-Z]/.test(prop)) {
