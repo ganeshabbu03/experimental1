@@ -4,67 +4,46 @@ from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from apps/backend/.env file
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', '.env')
+load_dotenv(dotenv_path=env_path)
 
-from app.routes import auth, profile, projects, oauth, terminal, ai
+from app.routes import auth, profile, projects
 from app.routes.plugins_router import router as plugins_router
 from app.database import Base, engine
-from app.db_bootstrap import ensure_core_tables, ensure_schema_compatibility
 from app.models.user import User
 from app.models.project import Project
 from app.models.file import File
 
 # Create all tables on startup
-try:
-    Base.metadata.create_all(bind=engine)
-    ensure_core_tables(engine)
-    ensure_schema_compatibility(engine)
-except Exception as exc:
-    print(f"[warn] Database schema bootstrap failed during startup: {exc}")
+Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Deexen Backend API", version="1.0.0")
+app = FastAPI(title="Deexen Backend API", version="1.0.0", redirect_slashes=False)
 
 # Add CORS middleware
 frontend_url = os.getenv("FRONTEND_URL", "")
-cors_origins_env = os.getenv("CORS_ORIGINS", "")
 allowed_origins = ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
 if frontend_url:
     allowed_origins.append(frontend_url)
-if cors_origins_env:
-    allowed_origins.extend(
-        [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
-    )
-
-# Keep order stable while removing duplicates.
-allowed_origins = list(dict.fromkeys(allowed_origins))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://[a-z0-9-]+\.up\.railway\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Add SessionMiddleware for OAuth
-app.add_middleware(SessionMiddleware, secret_key="deexen-session-secret-key-change-in-production")
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
-
-@app.get("/")
-def root():
-    return {"status": "ok", "service": "deexen-backend"}
-
 # Include routers
+from app.routes import auth, profile, projects, ai, terminal
+# ... existing code ...
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(profile.router, prefix="/profile", tags=["Profile"])
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(ai.router, prefix="/ai", tags=["AI"])
-app.include_router(oauth.router, prefix="/oauth", tags=["OAuth"])
 app.include_router(terminal.router, prefix="/terminal", tags=["Terminal"])
 app.include_router(plugins_router, prefix="/plugins", tags=["Plugins"])
