@@ -36,7 +36,12 @@ export class ExtensionHostService implements OnModuleInit {
         try {
             this.buildVscodeApi();
             this.hijackRequire();
-            await this.reloadExtensions(true);
+            const autoLoad = (process.env.EXTENSION_HOST_AUTOLOAD ?? 'true').toLowerCase() !== 'false';
+            if (autoLoad) {
+                await this.reloadExtensions(true);
+            } else {
+                console.log('[ExtensionHost] Startup extension autoload is disabled (EXTENSION_HOST_AUTOLOAD=false).');
+            }
         } catch (error) {
             console.error('[ExtensionHost] Startup degraded due to initialization error:', error);
         }

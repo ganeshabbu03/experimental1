@@ -16,7 +16,8 @@ RUN npm run build
 
 ENV NODE_ENV=production \
     PORT=8080 \
-    PRISMA_DB_PUSH_ON_START=false
+    PRISMA_DB_PUSH_ON_START=false \
+    EXTENSION_HOST_AUTOLOAD=false
 
 EXPOSE 8080
 CMD ["sh", "scripts/start.sh"]
