@@ -1,12 +1,19 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean # type: ignore
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text # type: ignore
 from sqlalchemy.orm import relationship # type: ignore
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from datetime import datetime
 from app.database import Base # type: ignore
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String(36), primary_key=True, index=True)
+    id = Column(
+        UUID(as_uuid=True), 
+        primary_key=True, 
+        index=True, 
+        default=uuid.uuid4
+    )
     email = Column(String(255), unique=True, index=True, nullable=False)
     password = Column(String, nullable=True) # Nullable for OAuth users
     name = Column(String(255), nullable=False)
