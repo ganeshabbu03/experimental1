@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 import re
 
@@ -21,6 +21,13 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: str
     
+    @field_validator('id', mode='before')
+    @classmethod
+    def validate_id(cls, v):
+        if v is None:
+            return None
+        return str(v)
+
     class Config:
         from_attributes = True
 

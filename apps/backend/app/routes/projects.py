@@ -41,7 +41,7 @@ def create_project(
     
     return ProjectResponse(
         id=project.id,
-        user_id=project.user_id,
+        user_id=str(project.user_id),
         name=project.name,
         description=project.description,
         is_active=project.is_active,
@@ -66,7 +66,7 @@ def list_projects(
         return [
             ProjectResponse(
                 id=p.id,
-                user_id=p.user_id,
+                user_id=str(p.user_id),
                 name=p.name,
                 description=p.description,
                 is_active=p.is_active,
@@ -98,7 +98,7 @@ def get_project(
     
     return ProjectResponse(
         id=project.id,
-        user_id=project.user_id,
+        user_id=str(project.user_id),
         name=project.name,
         description=project.description,
         is_active=project.is_active,
@@ -132,7 +132,7 @@ def update_project(
     
     return ProjectResponse(
         id=project.id,
-        user_id=project.user_id,
+        user_id=str(project.user_id),
         name=project.name,
         description=project.description,
         is_active=project.is_active,
@@ -209,7 +209,7 @@ def create_file(
     
     return FileResponse(
         id=file.id,
-        user_id=file.user_id,
+        user_id=str(file.user_id) if file.user_id else None,
         project_id=file.project_id,
         parent_id=file.parent_id,
         name=file.name,
@@ -243,7 +243,7 @@ def list_files(
     return [
         FileResponse(
             id=f.id,
-            user_id=f.user_id,
+            user_id=str(f.user_id) if f.user_id else None,
             project_id=f.project_id,
             parent_id=f.parent_id,
             name=f.name,
@@ -324,7 +324,7 @@ def get_file(
     
     return FileResponse(
         id=file.id,
-        user_id=file.user_id,
+        user_id=str(file.user_id) if file.user_id else None,
         project_id=file.project_id,
         parent_id=file.parent_id,
         name=file.name,
@@ -380,7 +380,7 @@ def update_file(
     
     return FileResponse(
         id=file.id,
-        user_id=file.user_id,
+        user_id=str(file.user_id) if file.user_id else None,
         project_id=file.project_id,
         parent_id=file.parent_id,
         name=file.name,
