@@ -15,7 +15,7 @@ class LoginRequest(BaseModel):
     password: str
 
 class UserResponse(BaseModel):
-    id: int
+    id: str
     email: str
     name: str
     is_active: bool

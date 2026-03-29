@@ -12,7 +12,7 @@ class ProjectUpdateRequest(BaseModel):
 
 class ProjectResponse(BaseModel):
     id: int
-    user_id: int
+    user_id: str
     name: str
     description: Optional[str]
     is_active: bool

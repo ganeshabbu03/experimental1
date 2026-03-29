@@ -14,7 +14,7 @@ class FileUpdateRequest(BaseModel):
 
 class FileResponse(BaseModel):
     id: int
-    user_id: Optional[int] = None
+    user_id: Optional[str] = None
     project_id: int
     parent_id: Optional[int]
     name: str
