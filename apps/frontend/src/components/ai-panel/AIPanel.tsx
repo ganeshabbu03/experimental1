@@ -5,16 +5,16 @@ import { useAIStore } from '@/stores/useAIStore';
 import { MODE_CONFIG, AI_MODES } from '@/config/aiModes';
 import type { AIMode } from '@/config/aiModes';
 import { aiService } from '@/services/aiService';
-import { useFileStore } from '@/stores/useFileStore';
+import { useFileStore, type FileNode } from '@/stores/useFileStore';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 // AI Models
 const AI_MODELS = [
-    { id: 'opus', name: 'Claude Opus 4.5', suffix: '(Thinking)' },
-    { id: 'sonnet', name: 'Claude Sonnet 4', suffix: '' },
-    { id: 'gpt4', name: 'GPT-4o', suffix: '' },
-    { id: 'gemini', name: 'Gemini 2.5 Pro', suffix: '' },
+    { id: 'opus', name: 'Claude Opus 4.6', suffix: '(Reasoning)' },
+    { id: 'sonnet', name: 'Claude Sonnet 4.2', suffix: '' },
+    { id: 'gpt4', name: 'GPT-5 Ultra', suffix: '' },
+    { id: 'gemini', name: 'Gemini 3 Pro', suffix: '' },
 ];
 
 const CODE_LIKE_PATTERN = /[`{}();]|=>|\b(const|let|var|function|class|def|import|export|return|if|else|for|while|interface|type|async|await|SELECT|INSERT|UPDATE|DELETE)\b/;
@@ -91,7 +91,7 @@ export default function AIPanel() {
     // Resolve the current editor file when the user is asking about open code.
     const getCurrentFile = () => {
         if (!activeFileId) return { content: '', name: '' };
-        const findFile = (nodes: any[]): any => {
+        const findFile = (nodes: FileNode[]): FileNode | null => {
             for (const node of nodes) {
                 if (node.id === activeFileId) return node;
                 if (node.children) {

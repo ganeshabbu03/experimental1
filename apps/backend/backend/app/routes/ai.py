@@ -101,19 +101,19 @@ async def analyze_code(request: AnalyzeRequest):
         
     system_prompt = f"{persona}\n\nTask Instructions:\n{mode_instructions}"
 
-    # Map frontend model IDs to exact OpenRouter/External endpoints
+    # Map frontend model IDs to exact OpenRouter/External endpoints (Updated for 2026)
     model_map = {
-        "gemini": "google/gemini-flash-1.5",
-        "opus": "anthropic/claude-3-opus",
-        "sonnet": "anthropic/claude-3.5-sonnet",
-        "gpt4": "openai/gpt-4o",
-        "gemini-free": "google/gemini-flash-1.5-exp",
-        "llama-70b-free": "meta-llama/llama-3.3-70b-instruct",
-        "llama-8b-free": "meta-llama/llama-3.2-3b-instruct",
-        "deepseek-free": "deepseek/deepseek-chat",
-        "mistral-nemo-free": "mistralai/mistral-nemo",
-        "qwen-coder-free": "qwen/qwen-2.5-coder-32b-instruct",
-        "magicoder": "qwen/qwen-2.5-coder-32b-instruct",
+        "gemini": "google/gemini-3-pro",
+        "opus": "anthropic/claude-opus-4.6",
+        "sonnet": "anthropic/claude-sonnet-4.2",
+        "gpt4": "openai/gpt-5-ultra",
+        "gemini-free": "google/gemini-2-flash",
+        "llama-70b-free": "meta-llama/llama-4-70b-instruct",
+        "llama-8b-free": "meta-llama/llama-4-8b-instruct",
+        "deepseek-free": "deepseek/deepseek-v4",
+        "mistral-nemo-free": "mistralai/mistral-nemo-2",
+        "qwen-coder-free": "qwen/qwen-3-coder-max",
+        "magicoder": "qwen/qwen-3-coder-max",
     }
     
     # Use mapped name if available, otherwise use original
@@ -164,6 +164,28 @@ async def analyze_code(request: AnalyzeRequest):
                     data = response.json()
                     response_text = data["choices"][0]["message"]["content"]
                     print(f"[AI] OpenRouter success for mode={mode}")
+                elif response.status_code == 404:
+                    fallback_model = "google/gemini-2-flash"
+                    print(f"[AI] OpenRouter 404 for {target_model}, trying fallback {fallback_model}...")
+                    retry_response = await client.post(
+                        f"{api_base}/chat/completions",
+                        headers={"Authorization": f"Bearer {api_key}"},
+                        json={
+                            "model": fallback_model,
+                            "messages": [
+                                {"role": "system", "content": f"{system_prompt}\n\n(Note: The primary model requested was unavailable, so a stable fallback was used.)"},
+                                {"role": "user", "content": user_prompt}
+                            ],
+                            "temperature": 0.3,
+                            "max_tokens": 2048,
+                        }
+                    )
+                    if retry_response.status_code == 200:
+                        data = retry_response.json()
+                        response_text = data["choices"][0]["message"]["content"]
+                        print(f"[AI] OpenRouter fallback success")
+                    else:
+                        errors.append(f"OpenRouter Fallback ({retry_response.status_code}): {retry_response.text[:200]}")
                 else:
                     errors.append(f"OpenRouter ({response.status_code}): {response.text[:200]}")
                     print(f"[AI] OpenRouter error {response.status_code}: {response.text[:200]}")
