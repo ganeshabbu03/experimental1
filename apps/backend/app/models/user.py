@@ -20,6 +20,7 @@ class User(Base):
     provider = Column(String(50), nullable=True) # github, google, etc.
     provider_id = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
+    avatar_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

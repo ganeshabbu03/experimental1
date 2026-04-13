@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import Avatar from '@/components/ui/Avatar';
 
@@ -8,6 +8,7 @@ interface AvatarUploadProps {
     onAvatarChange: (file: File, base64: string) => void;
     size?: 'sm' | 'md' | 'lg' | 'xl';
     editable?: boolean;
+    isLoading?: boolean;
 }
 
 const sizeClasses = {
@@ -17,7 +18,13 @@ const sizeClasses = {
     xl: 'w-48 h-48',
 };
 
-export default function AvatarUpload({ currentAvatar, onAvatarChange, size = 'md', editable = true }: AvatarUploadProps) {
+export default function AvatarUpload({
+    currentAvatar,
+    onAvatarChange,
+    size = 'md',
+    editable = true,
+    isLoading = false,
+}: AvatarUploadProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [preview, setPreview] = useState<string | null>(null);
 
@@ -27,7 +34,7 @@ export default function AvatarUpload({ currentAvatar, onAvatarChange, size = 'md
 
         // Simple validation
         if (file.size > 2 * 1024 * 1024) { // 2MB
-            alert("File size must be less than 2MB");
+            alert('File size must be less than 2MB');
             return;
         }
 
@@ -41,7 +48,7 @@ export default function AvatarUpload({ currentAvatar, onAvatarChange, size = 'md
     };
 
     const triggerUpload = () => {
-        if (editable) {
+        if (editable && !isLoading) {
             fileInputRef.current?.click();
         }
     };
@@ -50,9 +57,10 @@ export default function AvatarUpload({ currentAvatar, onAvatarChange, size = 'md
         <div className="relative inline-block group">
             <div
                 className={cn(
-                    "relative rounded-full border-2 border-[var(--border-default)] bg-[var(--bg-surface)]",
+                    'relative rounded-full border-2 border-[var(--border-default)] bg-[var(--bg-surface)]',
                     sizeClasses[size],
-                    editable && "cursor-pointer"
+                    editable && !isLoading && 'cursor-pointer',
+                    isLoading && 'cursor-not-allowed opacity-70'
                 )}
                 onClick={triggerUpload}
             >
@@ -63,8 +71,12 @@ export default function AvatarUpload({ currentAvatar, onAvatarChange, size = 'md
                     className="w-full h-full"
                 />
 
-                {editable && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {isLoading ? (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                        <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    </div>
+                ) : editable && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-full">
                         <Camera className="w-6 h-6 text-white" />
                     </div>
                 )}
@@ -74,8 +86,9 @@ export default function AvatarUpload({ currentAvatar, onAvatarChange, size = 'md
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept="image/png, image/jpeg, image/jpg"
+                accept="image/png, image/jpeg, image/jpg, image/webp"
                 onChange={handleFileChange}
+                disabled={isLoading}
             />
         </div>
     );

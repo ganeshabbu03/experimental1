@@ -8,6 +8,7 @@ export interface User {
     name: string;
     email: string;
     avatar?: string;
+    avatar_url?: string;
     joinDate?: string;
     lastActive?: string;
     projectCount?: number;
