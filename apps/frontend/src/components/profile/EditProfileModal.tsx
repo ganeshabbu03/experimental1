@@ -3,8 +3,9 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-
 import AvatarUpload from './AvatarUpload';
+import { uploadAvatarToSupabase } from '@/services/avatarUploadService';
+import { apiClient } from '@/services/apiClient';
 
 interface EditProfileModalProps {
     isOpen: boolean;
@@ -14,30 +15,65 @@ interface EditProfileModalProps {
 export default function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     const { user, updateUser } = useAuthStore();
     const [name, setName] = useState(user?.name || '');
-    const [newAvatar, setNewAvatar] = useState<string | null>(null);
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [isAvatarLoading, setIsAvatarLoading] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Mock additional fields if they were in the user object
     const [bio, setBio] = useState('Example User Bio');
     const [location, setLocation] = useState('San Francisco, CA');
     const [website, setWebsite] = useState('deexen.dev');
 
+    const handleAvatarChange = (file: File, _base64: string) => {
+        setPendingFile(file);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setError(null);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
+        try {
+            let avatarUrl: string | undefined;
 
-        updateUser({
-            name,
-            ...(newAvatar && { avatar: newAvatar })
-        });
-        // In a real app, we would update bio, location, etc. in the backend here
-        // For now, we are just updating the name in auth store
+            // 1. Upload avatar to Supabase Storage if a new file was selected
+            if (pendingFile && user?.id) {
+                setIsAvatarLoading(true);
+                try {
+                    avatarUrl = await uploadAvatarToSupabase(pendingFile, user.id);
+                } finally {
+                    setIsAvatarLoading(false);
+                }
+            }
 
-        setIsLoading(false);
-        onClose();
+            // 2. Persist name (and avatar_url if changed) to the backend
+            const updatedUser = await apiClient.put<{
+                id: string;
+                name: string;
+                email: string;
+                is_active: boolean;
+                created_at: string;
+                avatar_url: string | null;
+            }>('/profile/', {
+                name,
+                ...(avatarUrl !== undefined && { avatar_url: avatarUrl }),
+            });
+
+            // 3. Sync the auth store so the UI reflects the changes immediately
+            updateUser({
+                name: updatedUser.name,
+                ...(updatedUser.avatar_url && { avatar: updatedUser.avatar_url, avatar_url: updatedUser.avatar_url }),
+            });
+
+            setPendingFile(null);
+            onClose();
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to save profile. Please try again.';
+            setError(message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -45,11 +81,16 @@ export default function EditProfileModal({ isOpen, onClose }: EditProfileModalPr
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="flex justify-center mb-6">
                     <AvatarUpload
-                        currentAvatar={user?.avatar || ''}
-                        onAvatarChange={(_, base64) => setNewAvatar(base64)}
+                        currentAvatar={user?.avatar_url || user?.avatar || ''}
+                        onAvatarChange={handleAvatarChange}
                         size="lg"
+                        isLoading={isAvatarLoading}
                     />
                 </div>
+
+                {error && (
+                    <p className="text-sm text-red-500 text-center">{error}</p>
+                )}
 
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-[var(--text-secondary)]">Display Name</label>
@@ -90,7 +131,7 @@ export default function EditProfileModal({ isOpen, onClose }: EditProfileModalPr
                 </div>
 
                 <div className="pt-2 flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={onClose}>
+                    <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
                         Cancel
                     </Button>
                     <Button type="submit" isLoading={isLoading}>

@@ -17,6 +17,7 @@ REQUIRED_COLUMNS: Dict[str, Dict[str, str]] = {
         "provider": "VARCHAR(50)",
         "provider_id": "VARCHAR(255)",
         "is_active": "BOOLEAN DEFAULT TRUE",
+        "avatar_url": "VARCHAR(500)",
         "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
     },
     "projects": {

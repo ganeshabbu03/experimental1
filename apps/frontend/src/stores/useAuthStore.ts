@@ -19,11 +19,13 @@ interface AuthState {
 }
 
 function mapSupabaseUser(supaUser: { id: string; email?: string; user_metadata?: Record<string, string>; created_at: string }, accessToken: string) {
+    const avatarUrl = supaUser.user_metadata?.avatar_url || undefined;
     const user: User = {
         id: supaUser.id,
         name: supaUser.user_metadata?.name || supaUser.user_metadata?.full_name || supaUser.email?.split('@')[0] || 'User',
         email: supaUser.email || '',
-        avatar: supaUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(supaUser.email || 'U')}&background=ea580c&color=fff`,
+        avatar: avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(supaUser.email || 'U')}&background=ea580c&color=fff`,
+        avatar_url: avatarUrl,
         joinDate: new Date(supaUser.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
         lastActive: 'Just now',
         onboardingCompleted: true,

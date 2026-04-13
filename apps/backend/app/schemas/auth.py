@@ -20,7 +20,8 @@ class UserResponse(BaseModel):
     name: str
     is_active: bool
     created_at: str
-    
+    avatar_url: Optional[str] = None
+
     @field_validator('id', mode='before')
     @classmethod
     def validate_id(cls, v):
